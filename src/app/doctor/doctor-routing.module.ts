@@ -3,11 +3,13 @@ import { RouterModule, Routes } from '@angular/router';
 import { DashboardComponent } from './dashboard/dashboard.component';
 import { AppointmentsComponent } from './appointments/appointments.component';
 import { ScheduleComponent } from './schedule/schedule.component';
+import { MessagesComponent } from './messages/messages.component'; // Added import
 
 const routes: Routes = [
   { path: 'dashboard', component: DashboardComponent },
   { path: 'appointments', component: AppointmentsComponent },
   { path: 'schedule', component: ScheduleComponent },
+  { path: 'messages', component: MessagesComponent }, // Added route
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' }, // Default to doctor dashboard
 ];
 
