@@ -10,6 +10,11 @@ export const routes: Routes = [
     loadChildren: () => import('./patient/patient.module').then(m => m.PatientModule) 
     // Add a guard here later: canActivate: [AuthGuard], data: { roles: ['patient'] }
   },
+  {
+    path: 'doctor',
+    loadChildren: () => import('./doctor/doctor.module').then(m => m.DoctorModule)
+    // Add a guard here later: canActivate: [AuthGuard], data: { roles: ['doctor'] }
+  },
   // Add other top-level routes here, e.g., for patient and doctor dashboards
   { path: '', redirectTo: '/auth/login', pathMatch: 'full' }, // Default route
   { path: '**', redirectTo: '/auth/login' } // Wildcard route for 404s
