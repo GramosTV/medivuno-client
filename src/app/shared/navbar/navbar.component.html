@@ -1,0 +1,35 @@
+<nav class="bg-blue-600 text-white p-4 shadow-md">
+  <div class="container mx-auto flex justify-between items-center">
+    <a routerLink="/" class="text-xl font-bold hover:text-blue-200">HealthApp</a>
+
+    <div class="space-x-4">
+      <!-- Always Visible Links -->
+      <!-- <a routerLink="/" routerLinkActive="font-semibold underline" [routerLinkActiveOptions]="{exact: true}" class="hover:text-blue-200">Home</a> -->
+
+      <!-- Logged Out Links -->
+      <ng-container *ngIf="!(isLoggedIn$ | async)">
+        <a routerLink="/auth/login" routerLinkActive="font-semibold underline" class="hover:text-blue-200">Login</a>
+        <a routerLink="/auth/register" routerLinkActive="font-semibold underline" class="hover:text-blue-200">Register</a>
+      </ng-container>
+
+      <!-- Logged In Links -->
+      <ng-container *ngIf="(isLoggedIn$ | async) as isLoggedIn">
+        <!-- Patient Links -->
+        <ng-container *ngIf="(currentUserRole$ | async) === 'patient'">
+          <a routerLink="/patient/dashboard" routerLinkActive="font-semibold underline" class="hover:text-blue-200">Dashboard</a>
+          <a routerLink="/patient/appointments" routerLinkActive="font-semibold underline" class="hover:text-blue-200">My Appointments</a>
+          <a routerLink="/patient/book-appointment" routerLinkActive="font-semibold underline" class="hover:text-blue-200">Book Appointment</a>
+        </ng-container>
+
+        <!-- Doctor Links -->
+        <ng-container *ngIf="(currentUserRole$ | async) === 'doctor'">
+          <a routerLink="/doctor/dashboard" routerLinkActive="font-semibold underline" class="hover:text-blue-200">Dashboard</a>
+          <a routerLink="/doctor/appointments" routerLinkActive="font-semibold underline" class="hover:text-blue-200">Appointments</a>
+          <a routerLink="/doctor/schedule" routerLinkActive="font-semibold underline" class="hover:text-blue-200">My Schedule</a>
+        </ng-container>
+
+        <button (click)="logout()" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Logout</button>
+      </ng-container>
+    </div>
+  </div>
+</nav>

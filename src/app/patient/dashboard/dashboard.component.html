@@ -1,1 +1,33 @@
-<p>dashboard works!</p>
+<div class="container mx-auto p-6">
+  <h1 class="text-3xl font-bold text-gray-800 mb-8">Patient Dashboard</h1>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <!-- Upcoming Appointments Card -->
+    <div class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
+      <h2 class="text-xl font-semibold text-blue-600 mb-3">Upcoming Appointments</h2>
+      <p class="text-gray-600 mb-4">You have 2 upcoming appointments.</p>
+      <a routerLink="/patient/appointments" class="text-blue-500 hover:text-blue-700 font-medium">View Appointments &rarr;</a>
+    </div>
+
+    <!-- Book New Appointment Card -->
+    <div class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
+      <h2 class="text-xl font-semibold text-green-600 mb-3">Book a New Appointment</h2>
+      <p class="text-gray-600 mb-4">Find a doctor and schedule your next visit.</p>
+      <a routerLink="/patient/book-appointment" class="text-green-500 hover:text-green-700 font-medium">Book Now &rarr;</a>
+    </div>
+
+    <!-- Medical Records Card (Placeholder) -->
+    <div class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
+      <h2 class="text-xl font-semibold text-purple-600 mb-3">Medical Records</h2>
+      <p class="text-gray-600 mb-4">Access your medical history (coming soon).</p>
+      <a href="#" class="text-purple-500 hover:text-purple-700 font-medium">View Records &rarr;</a>
+    </div>
+
+    <!-- Messages Card (Placeholder) -->
+    <div class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
+      <h2 class="text-xl font-semibold text-yellow-600 mb-3">Messages</h2>
+      <p class="text-gray-600 mb-4">You have 0 unread messages (coming soon).</p>
+      <a href="#" class="text-yellow-500 hover:text-yellow-700 font-medium">View Messages &rarr;</a>
+    </div>
+  </div>
+</div>
