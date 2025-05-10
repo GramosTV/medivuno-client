@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { authGuard } from './core/auth.guard';
 
 export const routes: Routes = [
   { 
@@ -7,15 +8,16 @@ export const routes: Routes = [
   },
   { 
     path: 'patient', 
-    loadChildren: () => import('./patient/patient.module').then(m => m.PatientModule) 
-    // Add a guard here later: canActivate: [AuthGuard], data: { roles: ['patient'] }
+    loadChildren: () => import('./patient/patient.module').then(m => m.PatientModule),
+    canActivate: [authGuard],
+    data: { roles: ['patient'] }
   },
   {
     path: 'doctor',
-    loadChildren: () => import('./doctor/doctor.module').then(m => m.DoctorModule)
-    // Add a guard here later: canActivate: [AuthGuard], data: { roles: ['doctor'] }
+    loadChildren: () => import('./doctor/doctor.module').then(m => m.DoctorModule),
+    canActivate: [authGuard],
+    data: { roles: ['doctor'] }
   },
-  // Add other top-level routes here, e.g., for patient and doctor dashboards
-  { path: '', redirectTo: '/auth/login', pathMatch: 'full' }, // Default route
-  { path: '**', redirectTo: '/auth/login' } // Wildcard route for 404s
+  { path: '', redirectTo: '/auth/login', pathMatch: 'full' }, 
+  { path: '**', redirectTo: '/auth/login' } 
 ];
