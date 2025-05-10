@@ -1,1 +1,62 @@
-<p>appointments works!</p>
+<div class="container mx-auto p-6 bg-gray-50 min-h-screen">
+  <div class="flex justify-between items-center mb-8">
+    <h1 class="text-3xl font-bold text-gray-800">My Appointments</h1>
+    <a routerLink="/patient/book-appointment" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow hover:shadow-md transition duration-150">
+      Book New Appointment
+    </a>
+  </div>
+
+  <!-- Upcoming Appointments -->
+  <div class="mb-12">
+    <h2 class="text-2xl font-semibold text-gray-700 mb-6">Upcoming Appointments</h2>
+    <div *ngIf="upcomingAppointments.length > 0; else noUpcomingAppointments" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div *ngFor="let appt of upcomingAppointments" class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300">
+        <h3 class="text-xl font-semibold text-blue-700 mb-2">{{ appt.doctorName }}</h3>
+        <p class="text-sm text-gray-500 mb-1">{{ appt.specialty }}</p>
+        <p class="text-gray-700 mb-1"><span class="font-medium">Date:</span> {{ appt.date | date: 'fullDate' }}</p>
+        <p class="text-gray-700 mb-3"><span class="font-medium">Time:</span> {{ appt.time }}</p>
+        <span class="px-3 py-1 text-xs font-semibold rounded-full"
+              [ngClass]="{'bg-green-100 text-green-800': appt.status === 'Confirmed', 
+                          'bg-red-100 text-red-800': appt.status === 'Cancelled'}">
+          {{ appt.status }}
+        </span>
+        <div class="mt-4 pt-4 border-t border-gray-200">
+          <button (click)="cancelAppointment(appt.id)" 
+                  *ngIf="appt.status === 'Confirmed'" 
+                  class="w-full text-sm text-red-500 hover:text-red-700 font-medium py-2 px-3 rounded-md hover:bg-red-50 transition duration-150">
+            Cancel Appointment
+          </button>
+        </div>
+      </div>
+    </div>
+    <ng-template #noUpcomingAppointments>
+      <div class="bg-white p-6 rounded-lg shadow text-center">
+        <p class="text-gray-600">You have no upcoming appointments.</p>
+      </div>
+    </ng-template>
+  </div>
+
+  <!-- Past Appointments -->
+  <div>
+    <h2 class="text-2xl font-semibold text-gray-700 mb-6">Past Appointments</h2>
+    <div *ngIf="pastAppointments.length > 0; else noPastAppointments" class="space-y-4">
+      <div *ngFor="let appt of pastAppointments" class="bg-white p-5 rounded-lg shadow-md flex justify-between items-center">
+        <div>
+          <h3 class="text-lg font-semibold text-gray-800">{{ appt.doctorName }}</h3>
+          <p class="text-sm text-gray-500">{{ appt.specialty }}</p>
+          <p class="text-sm text-gray-600">{{ appt.date | date: 'mediumDate' }} - {{ appt.time }}</p>
+        </div>
+        <span class="px-3 py-1 text-xs font-semibold rounded-full"
+              [ngClass]="{'bg-gray-200 text-gray-800': appt.status === 'Completed', 
+                          'bg-red-100 text-red-800': appt.status === 'Cancelled'}">
+          {{ appt.status }}
+        </span>
+      </div>
+    </div>
+    <ng-template #noPastAppointments>
+      <div class="bg-white p-6 rounded-lg shadow text-center">
+        <p class="text-gray-600">You have no past appointments.</p>
+      </div>
+    </ng-template>
+  </div>
+</div>
