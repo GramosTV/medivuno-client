@@ -11,6 +11,6 @@ import { CommonModule } from '@angular/common';
   ],
   exports: [
     // NavbarComponent // No need to export if standalone and imported directly where used
-  ]
+  ],
 })
-export class SharedModule { }
+export class SharedModule {}

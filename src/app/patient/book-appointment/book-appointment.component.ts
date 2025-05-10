@@ -1,7 +1,14 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import {
+  FormBuilder,
+  FormGroup,
+  Validators,
+  ReactiveFormsModule,
+} from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { CalendarViewComponent } from '../../shared/calendar-view/calendar-view.component';
+import { CalendarEvent } from 'angular-calendar';
 
 interface Doctor {
   id: string;
@@ -17,53 +24,134 @@ interface TimeSlot {
 @Component({
   selector: 'app-book-appointment',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, CalendarViewComponent],
   templateUrl: './book-appointment.component.html',
-  styleUrls: ['./book-appointment.component.scss']
+  styleUrls: ['./book-appointment.component.scss'],
 })
 export class BookAppointmentComponent implements OnInit {
   bookingForm: FormGroup;
   doctors: Doctor[] = [
     { id: 'doc1', name: 'Dr. Alice Smith', specialty: 'Cardiology' },
     { id: 'doc2', name: 'Dr. Bob Johnson', specialty: 'Neurology' },
-    { id: 'doc3', name: 'Dr. Carol Williams', specialty: 'Pediatrics' }
+    { id: 'doc3', name: 'Dr. Carol Williams', specialty: 'Pediatrics' },
   ];
   availableTimeSlots: TimeSlot[] = [];
   minDate: string;
+
+  // Calendar properties
+  viewDate: Date = new Date();
+  events: CalendarEvent[] = [];
+  activeDayIsOpen: boolean = false;
 
   constructor(private fb: FormBuilder, private router: Router) {
     this.bookingForm = this.fb.group({
       doctor: ['', Validators.required],
       date: ['', Validators.required],
-      time: ['', Validators.required]
+      time: ['', Validators.required],
     });
     const today = new Date();
     this.minDate = today.toISOString().split('T')[0];
   }
 
   ngOnInit(): void {
-    this.bookingForm.get('date')?.valueChanges.subscribe(value => {
-      this.updateAvailableTimeSlots(value);
+    this.bookingForm.get('doctor')?.valueChanges.subscribe((doctorId) => {
+      const dateString = this.bookingForm.get('date')?.value;
+      if (dateString) {
+        // Convert 'YYYY-MM-DD' string back to a Date object
+        const [year, month, day] = dateString.split('-').map(Number);
+        const selectedDateObject = new Date(year, month - 1, day);
+        this.updateAvailableTimeSlots(selectedDateObject);
+      } else {
+        this.availableTimeSlots = [];
+        this.bookingForm.get('time')?.setValue('');
+      }
+    });
+
+    // Log form status changes
+    this.bookingForm.statusChanges.subscribe((status) => {
+      console.log('Form status changed:', status);
+      console.log(
+        'Doctor status:',
+        this.bookingForm.get('doctor')?.status,
+        'Doctor value:',
+        this.bookingForm.get('doctor')?.value
+      );
+      console.log(
+        'Date status:',
+        this.bookingForm.get('date')?.status,
+        'Date value:',
+        this.bookingForm.get('date')?.value
+      );
+      console.log(
+        'Time status:',
+        this.bookingForm.get('time')?.status,
+        'Time value:',
+        this.bookingForm.get('time')?.value
+      );
+      console.log('--------------------------');
     });
   }
 
-  updateAvailableTimeSlots(selectedDate: string): void {
-    // Dummy time slots - in a real app, fetch this based on doctor and date
-    console.log(`Fetching time slots for ${selectedDate} and doctor ${this.bookingForm.get('doctor')?.value}`);
-    this.availableTimeSlots = [
-      { time: '09:00 AM', available: true },
-      { time: '10:00 AM', available: false }, // Example of a booked slot
-      { time: '11:00 AM', available: true },
-      { time: '01:00 PM', available: true },
-      { time: '02:00 PM', available: true },
-    ];
-    this.bookingForm.get('time')?.setValue(''); // Reset time selection
+  onDateSelected(selectedDate: Date): void {
+    const formattedDate = selectedDate.toISOString().split('T')[0];
+    console.log(
+      `[BookAppointmentComponent] onDateSelected: Received date - ${selectedDate.toDateString()}, Formatted date for form - ${formattedDate}`
+    );
+
+    const dateControl = this.bookingForm.get('date');
+    if (dateControl) {
+      dateControl.setValue(formattedDate);
+      console.log(
+        `[BookAppointmentComponent] onDateSelected: date control value AFTER setValue: '${dateControl.value}'`
+      );
+      console.log(
+        `[BookAppointmentComponent] onDateSelected: date control status AFTER setValue: ${dateControl.status}`
+      );
+      console.log(
+        `[BookAppointmentComponent] onDateSelected: bookingForm.value.date directly from form group: '${this.bookingForm.value.date}'`
+      );
+    } else {
+      console.error(
+        '[BookAppointmentComponent] onDateSelected: date form control not found!'
+      );
+    }
+
+    this.updateAvailableTimeSlots(selectedDate);
+    this.activeDayIsOpen = false;
+  }
+
+  updateAvailableTimeSlots(selectedDate: Date): void {
+    console.log(
+      `Fetching time slots for ${selectedDate.toDateString()} and doctor ${
+        this.bookingForm.get('doctor')?.value
+      }`
+    );
+    const day = selectedDate.getDay();
+
+    if (this.bookingForm.get('doctor')?.value) {
+      if (
+        this.bookingForm.get('doctor')?.value === 'doc1' &&
+        (day === 0 || day === 6)
+      ) {
+        this.availableTimeSlots = [];
+      } else {
+        this.availableTimeSlots = [
+          { time: '09:00 AM', available: true },
+          { time: '10:00 AM', available: true },
+          { time: '11:00 AM', available: true },
+          { time: '01:00 PM', available: true },
+          { time: '02:00 PM', available: true },
+        ];
+      }
+    } else {
+      this.availableTimeSlots = [];
+    }
+    this.bookingForm.get('time')?.setValue('');
   }
 
   onSubmit(): void {
     if (this.bookingForm.valid) {
       console.log('Booking submitted:', this.bookingForm.value);
-      // Here you would typically call a service to save the appointment
       alert('Appointment booked successfully! (Dummy)');
       this.router.navigate(['/patient/appointments']);
     } else {

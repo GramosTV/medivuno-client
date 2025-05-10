@@ -8,11 +8,11 @@ const routes: Routes = [
   { path: 'dashboard', component: DashboardComponent },
   { path: 'appointments', component: AppointmentsComponent },
   { path: 'book-appointment', component: BookAppointmentComponent },
-  { path: '', redirectTo: 'dashboard', pathMatch: 'full' } // Default to patient dashboard
+  { path: '', redirectTo: 'dashboard', pathMatch: 'full' }, // Default to patient dashboard
 ];
 
 @NgModule({
   imports: [RouterModule.forChild(routes)],
-  exports: [RouterModule]
+  exports: [RouterModule],
 })
-export class PatientRoutingModule { }
+export class PatientRoutingModule {}

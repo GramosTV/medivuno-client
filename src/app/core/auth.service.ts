@@ -3,7 +3,7 @@ import { Router } from '@angular/router';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AuthService {
   private currentUserSubject = new BehaviorSubject<any | null>(null);
@@ -28,7 +28,11 @@ export class AuthService {
 
   login(role: 'patient' | 'doctor'): Observable<boolean> {
     // Simulate API call
-    const dummyUser = { id: '1', email: role === 'patient' ? 'patient@example.com' : 'doctor@example.com', role: role };
+    const dummyUser = {
+      id: '1',
+      email: role === 'patient' ? 'patient@example.com' : 'doctor@example.com',
+      role: role,
+    };
     localStorage.setItem('currentUser', JSON.stringify(dummyUser));
     this.currentUserSubject.next(dummyUser);
     this.loggedIn.next(true);

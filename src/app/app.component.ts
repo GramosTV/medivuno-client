@@ -7,7 +7,7 @@ import { NavbarComponent } from './shared/navbar/navbar.component'; // Import Na
   standalone: true,
   imports: [RouterOutlet, NavbarComponent], // Add NavbarComponent to imports
   templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss']
+  styleUrls: ['./app.component.scss'],
 })
 export class AppComponent {
   title = 'healthcare-app';
