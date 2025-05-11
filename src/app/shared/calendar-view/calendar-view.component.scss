@@ -1,0 +1,78 @@
+/* 
+  Global styles for angular-calendar to enhance visual feedback for selection.
+  These styles will be applied because of ViewEncapsulation.None in the component.
+*/
+
+// --- Day Cell Styling (Month View) ---
+
+// Highlight for the currently selected day in month view
+.cal-month-view .cal-day-cell.cal-day-selected {
+  background-color: #e0f2fe !important; // Light blue, Tailwind\'s blue-100
+  border-radius: 4px; // Optional: adds rounded corners
+}
+
+// Style for \'today\' that is also selected
+.cal-month-view .cal-day-cell.cal-today.cal-day-selected .cal-day-number {
+  color: #2563eb !important; // Darker blue for the number, Tailwind\'s blue-600
+  font-weight: bold;
+}
+
+// --- Event Styling (All Views) ---
+
+// Available Slot Styling
+.cal-event-available .cal-event {
+  border-left: 5px solid #10b981 !important; // Greenish border (Tailwind green-500)
+  background-color: #d1fae5 !important; // Lighter green background (Tailwind green-100)
+  color: #047857 !important; // Darker green text (Tailwind green-700)
+}
+
+// Booked Slot Styling
+.cal-event-booked .cal-event {
+  border-left: 5px solid #ef4444 !important; // Reddish border (Tailwind red-500)
+  background-color: #fee2e2 !important; // Lighter red background (Tailwind red-100)
+  color: #b91c1c !important; // Darker red text (Tailwind red-700)
+  opacity: 0.8;
+}
+
+// Unavailable Slot Styling
+.cal-event-unavailable .cal-event {
+  border-left: 5px solid #6b7280 !important; // Grayish border (Tailwind gray-500)
+  background-color: #e5e7eb !important; // Lighter gray background (Tailwind gray-200)
+  color: #374151 !important; // Darker gray text (Tailwind gray-700)
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+// Selected Event/Time Slot Styling (Applies on top of other types)
+.cal-event-selected .cal-event {
+  border-left: 5px solid #2563eb !important; // Blue border (Tailwind blue-600)
+  background-color: #dbeafe !important; // Lighter blue background (Tailwind blue-100)
+  color: #1e40af !important; // Darker blue text (Tailwind blue-800)
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: scale(1.02); // Slight zoom effect
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  opacity: 1 !important; // Ensure selected is fully opaque
+}
+
+// --- Week and Day View Specifics ---
+
+// Highlight for selected day headers in week and day views
+.cal-week-view .cal-day-header.cal-day-selected,
+.cal-day-view .cal-day-header.cal-day-selected {
+  background-color: #bfdbfe !important; // Tailwind's blue-200
+  color: #1e40af !important; // Tailwind's blue-800
+  border-radius: 4px 4px 0 0; // Rounded top corners
+}
+
+// Style for time segments in week/day view if needed
+.cal-week-view .cal-hour-segment,
+.cal-day-view .cal-hour-segment {
+  &:hover {
+    background-color: #f0f9ff; // Very light blue on hover (Tailwind blue-50)
+  }
+}
+
+.cal-week-view .cal-hour-segment.cal-hour-segment-selected,
+.cal-day-view .cal-hour-segment.cal-hour-segment-selected {
+  background-color: #e0f2fe !important; // Light blue for selected time segment
+}

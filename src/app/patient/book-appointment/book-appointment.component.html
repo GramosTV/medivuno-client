@@ -41,12 +41,11 @@
         >Select Date</label
       >
       <app-calendar-view
+        [view]="CalendarView.Month"
         [viewDate]="viewDate"
-        [events]="events"
-        (dayClicked)="onDateSelected($event.date)"
-        [activeDayIsOpen]="activeDayIsOpen"
-      >
-      </app-calendar-view>
+        [events]="calendarEvents"
+        (dayClickedOutput)="onDateSelected($event)"
+      ></app-calendar-view>
       <!-- Hidden date input to keep form control -->
       <input
         type="date"

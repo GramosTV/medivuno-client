@@ -7,8 +7,11 @@ import {
 } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { CalendarViewComponent } from '../../shared/calendar-view/calendar-view.component';
-import { CalendarEvent } from 'angular-calendar';
+import {
+  CustomCalendarEvent,
+  CalendarViewComponent,
+} from '../../shared/calendar-view/calendar-view.component';
+import { CalendarView } from 'angular-calendar';
 
 interface Doctor {
   id: string;
@@ -40,8 +43,9 @@ export class BookAppointmentComponent implements OnInit {
 
   // Calendar properties
   viewDate: Date = new Date();
-  events: CalendarEvent[] = [];
+  calendarEvents: CustomCalendarEvent[] = [];
   activeDayIsOpen: boolean = false;
+  CalendarView = CalendarView;
 
   constructor(private fb: FormBuilder, private router: Router) {
     this.bookingForm = this.fb.group({
@@ -57,7 +61,6 @@ export class BookAppointmentComponent implements OnInit {
     this.bookingForm.get('doctor')?.valueChanges.subscribe((doctorId) => {
       const dateString = this.bookingForm.get('date')?.value;
       if (dateString) {
-        // Convert 'YYYY-MM-DD' string back to a Date object
         const [year, month, day] = dateString.split('-').map(Number);
         const selectedDateObject = new Date(year, month - 1, day);
         this.updateAvailableTimeSlots(selectedDateObject);
@@ -67,7 +70,6 @@ export class BookAppointmentComponent implements OnInit {
       }
     });
 
-    // Log form status changes
     this.bookingForm.statusChanges.subscribe((status) => {
       console.log('Form status changed:', status);
       console.log(
@@ -92,7 +94,8 @@ export class BookAppointmentComponent implements OnInit {
     });
   }
 
-  onDateSelected(selectedDate: Date): void {
+  onDateSelected(event: { date: Date; events: CustomCalendarEvent[] }): void {
+    const selectedDate = event.date;
     const formattedDate = selectedDate.toISOString().split('T')[0];
     console.log(
       `[BookAppointmentComponent] onDateSelected: Received date - ${selectedDate.toDateString()}, Formatted date for form - ${formattedDate}`
@@ -120,6 +123,41 @@ export class BookAppointmentComponent implements OnInit {
     this.activeDayIsOpen = false;
   }
 
+  onTimeSlotSelected(event: { event: CustomCalendarEvent }): void {
+    console.log(
+      'Time slot selected from calendar event (should not be called now):',
+      event.event
+    );
+    // This method might be removed or adapted if calendar event clicks are not used for time selection
+    // For now, let's ensure it doesn't break if somehow called, but its primary trigger is removed.
+    const selectedTime = event.event.start.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    this.bookingForm.get('time')?.setValue(selectedTime);
+
+    // Also update the availableTimeSlots dropdown to reflect this selection
+    const selectedSlot = this.availableTimeSlots.find(
+      (slot) => slot.time === selectedTime
+    );
+    if (selectedSlot && selectedSlot.available) {
+      // Optionally, do something if the slot is available
+    }
+  }
+
+  onHourSegmentClicked(event: { date: Date }): void {
+    console.log('Hour segment clicked (should not be called now):', event.date);
+    // This method is no longer directly triggered from the template for month-only view
+    // If it were to be used, it would set the date and update slots.
+    // For now, its direct trigger is removed.
+    // this.viewDate = event.date;
+    // this.bookingForm
+    //   .get('date')
+    //   ?.setValue(event.date.toISOString().split('T')[0]);
+    // this.updateAvailableTimeSlots(event.date);
+    // this.calendarEvents = [];
+  }
+
   updateAvailableTimeSlots(selectedDate: Date): void {
     console.log(
       `Fetching time slots for ${selectedDate.toDateString()} and doctor ${
@@ -127,15 +165,16 @@ export class BookAppointmentComponent implements OnInit {
       }`
     );
     const day = selectedDate.getDay();
+    let timeSlots: TimeSlot[] = [];
 
     if (this.bookingForm.get('doctor')?.value) {
       if (
         this.bookingForm.get('doctor')?.value === 'doc1' &&
-        (day === 0 || day === 6)
+        (day === 0 || day === 6) // Sunday or Saturday
       ) {
-        this.availableTimeSlots = [];
+        timeSlots = [];
       } else {
-        this.availableTimeSlots = [
+        timeSlots = [
           { time: '09:00 AM', available: true },
           { time: '10:00 AM', available: true },
           { time: '11:00 AM', available: true },
@@ -144,9 +183,12 @@ export class BookAppointmentComponent implements OnInit {
         ];
       }
     } else {
-      this.availableTimeSlots = [];
+      timeSlots = [];
     }
+    this.availableTimeSlots = timeSlots; // Populate for the dropdown
     this.bookingForm.get('time')?.setValue('');
+
+    this.calendarEvents = []; // Clear calendar events when date changes
   }
 
   onSubmit(): void {

@@ -43,28 +43,7 @@
       >
         Month
       </button>
-      <button
-        class="px-3 py-2 rounded-md text-sm font-medium transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-300"
-        [ngClass]="{
-          'bg-indigo-600 text-white': view === CalendarView.Week,
-          'bg-gray-100 hover:bg-gray-200 text-gray-600':
-            view !== CalendarView.Week
-        }"
-        (click)="setView(CalendarView.Week)"
-      >
-        Week
-      </button>
-      <button
-        class="px-3 py-2 rounded-md text-sm font-medium transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-300"
-        [ngClass]="{
-          'bg-indigo-600 text-white': view === CalendarView.Day,
-          'bg-gray-100 hover:bg-gray-200 text-gray-600':
-            view !== CalendarView.Day
-        }"
-        (click)="setView(CalendarView.Day)"
-      >
-        Day
-      </button>
+      <!-- Week and Day buttons removed -->
     </div>
   </div>
 
@@ -76,10 +55,19 @@
       [viewDate]="viewDate"
       [events]="events"
       [activeDayIsOpen]="activeDayIsOpen"
+      (beforeViewRender)="beforeMonthViewRender($event)"
       (dayClicked)="
-        onDayClicked({ date: $event.day.date, events: $event.day.events })
+        onCalendarMonthDayClicked({
+          date: $event.day.date,
+          events: $event.day.events
+        })
       "
-      (eventClicked)="onEventClicked('Clicked', $event.event)"
+      (eventClicked)="
+        onCalendarEventClicked({
+          event: $event.event,
+          sourceEvent: $event.sourceEvent
+        })
+      "
       (eventTimesChanged)="onEventTimesChanged($event)"
     >
     </mwl-calendar-month-view>
@@ -89,9 +77,18 @@
       *ngSwitchCase="CalendarView.Week"
       [viewDate]="viewDate"
       [events]="events"
-      (eventClicked)="onEventClicked('Clicked', $event.event)"
+      (beforeViewRender)="beforeWeekViewRender($event)"
+      (dayHeaderClicked)="
+        onCalendarWeekDayHeaderClicked({ date: $event.day.date })
+      "
+      (hourSegmentClicked)="onCalendarHourSegmentClicked({ date: $event.date })"
+      (eventClicked)="
+        onCalendarEventClicked({
+          event: $event.event,
+          sourceEvent: $event.sourceEvent
+        })
+      "
       (eventTimesChanged)="onEventTimesChanged($event)"
-      (dayHeaderClicked)="onDayClicked({ date: $event.day.date, events: [] })"
       [hourSegments]="2"
       [dayStartHour]="6"
       [dayEndHour]="20"
@@ -103,7 +100,14 @@
       *ngSwitchCase="CalendarView.Day"
       [viewDate]="viewDate"
       [events]="events"
-      (eventClicked)="onEventClicked('Clicked', $event.event)"
+      (beforeViewRender)="beforeDayViewRender($event)"
+      (hourSegmentClicked)="onCalendarHourSegmentClicked({ date: $event.date })"
+      (eventClicked)="
+        onCalendarEventClicked({
+          event: $event.event,
+          sourceEvent: $event.sourceEvent
+        })
+      "
       (eventTimesChanged)="onEventTimesChanged($event)"
       [hourSegments]="4"
       [dayStartHour]="6"
