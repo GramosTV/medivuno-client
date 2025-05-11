@@ -1,28 +1,53 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Message } from '../../shared/interfaces/message.interface'; // Import shared interface
+import { FormsModule } from '@angular/forms'; // Import FormsModule
+import { Message } from '../../shared/interfaces/message.interface';
+
+interface PatientRecipient {
+  id: string;
+  name: string;
+}
 
 @Component({
   selector: 'app-messages',
-  standalone: true, // Component is standalone
-  imports: [CommonModule], // Add CommonModule for *ngFor, | date pipe etc.
+  standalone: true,
+  imports: [CommonModule, FormsModule], // Add FormsModule here
   templateUrl: './messages.component.html',
   styleUrl: './messages.component.scss',
 })
 export class MessagesComponent implements OnInit {
   messages: Message[] = [];
   selectedMessage: Message | null = null;
-  // Assuming the logged-in doctor's name for context, replace with actual auth data
-  currentDoctorName: string = 'Dr. Emily Carter';
+  currentDoctorName: string = 'Dr. Emily Carter'; // Replace with actual auth data
+
+  // State for composing/replying
+  isComposing: boolean = false;
+  isReplying: boolean = false;
+
+  // Form fields for new/reply message
+  replyContent: string = '';
+  newMessageToPatientId: string = ''; // For new messages to a patient
+  newMessageSubject: string = '';
+  newMessageContent: string = '';
+  currentMessageContent: string = ''; // Used for the textarea
+  replyingToPatientName: string = ''; // Store patient name for reply view
+
+  // Dummy list of patients for "To" field in new message
+  // In a real app, this would come from a service, likely searchable
+  availablePatients: PatientRecipient[] = [
+    { id: 'patient123', name: 'John Doe' },
+    { id: 'patient456', name: 'Sarah Miller' },
+    { id: 'patient789', name: 'Michael Brown' },
+    { id: 'patient101', name: 'Jessica Taylo' },
+  ];
 
   constructor() {}
 
   ngOnInit(): void {
-    // Dummy messages for display from a doctor's perspective
     this.messages = [
       {
         id: 'msgDoc1',
-        sender: 'patient', // Corrected: Literal type
+        sender: 'patient' as 'patient',
         senderName: 'John Doe',
         receiverName: this.currentDoctorName,
         patientId: 'patient123',
@@ -35,7 +60,7 @@ export class MessagesComponent implements OnInit {
       },
       {
         id: 'msgDoc2',
-        sender: 'doctor', // Corrected: Literal type
+        sender: 'doctor' as 'doctor',
         senderName: this.currentDoctorName,
         receiverName: 'Sarah Miller',
         patientId: 'patient456',
@@ -48,7 +73,7 @@ export class MessagesComponent implements OnInit {
       },
       {
         id: 'msgDoc3',
-        sender: 'patient', // Corrected: Literal type
+        sender: 'patient' as 'patient',
         senderName: 'Michael Brown',
         receiverName: this.currentDoctorName,
         patientId: 'patient789',
@@ -61,7 +86,7 @@ export class MessagesComponent implements OnInit {
       },
       {
         id: 'msgDoc4',
-        sender: 'doctor', // Corrected: Literal type
+        sender: 'doctor' as 'doctor',
         senderName: this.currentDoctorName,
         receiverName: 'John Doe',
         patientId: 'patient123',
@@ -72,37 +97,110 @@ export class MessagesComponent implements OnInit {
         read: true,
         isSenderDoctor: true,
       },
-    ].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()); // Sort by most recent
+    ].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   }
 
   viewMessage(message: Message): void {
     this.selectedMessage = message;
     if (!message.isSenderDoctor && !message.read) {
-      // Only mark as read if received from patient and not already read
       message.read = true;
-      // In a real app, update read status on the backend
     }
+    this.isComposing = false;
+    this.isReplying = false;
   }
 
   closeMessageView(): void {
     this.selectedMessage = null;
+    this.isComposing = false;
+    this.isReplying = false;
   }
 
-  // Placeholder for future reply functionality
-  replyToMessage(message: Message): void {
-    console.log(
-      'Replying to message from patient:',
-      message.senderName,
-      message.subject
+  startReplyToPatient(): void {
+    if (!this.selectedMessage || this.selectedMessage.isSenderDoctor) return; // Can only reply to patient messages
+    this.isReplying = true;
+    this.isComposing = false;
+    this.newMessageToPatientId = this.selectedMessage.patientId || '';
+    // Set the patient name for the read-only field in the reply form
+    const patient = this.availablePatients.find(
+      (p) => p.id === this.newMessageToPatientId
     );
-    // This would likely open a new message composition view or inline reply,
-    // pre-filled with recipient (patient) and subject.
+    this.replyingToPatientName = patient ? patient.name : 'Unknown Patient';
+    this.newMessageSubject = `Re: ${this.selectedMessage.subject}`;
+    this.currentMessageContent = ''; // Clear for reply
+    this.selectedMessage = null; // Close detail view to show reply form
   }
 
-  // Placeholder for future new message functionality
-  createNewMessageToPatient(): void {
-    console.log('Creating new message to a patient');
-    // This would navigate to a new message composition page/modal,
-    // possibly with a patient selection step.
+  startNewMessageToPatient(): void {
+    this.isComposing = true;
+    this.isReplying = false;
+    this.newMessageToPatientId = '';
+    this.newMessageSubject = '';
+    this.currentMessageContent = ''; // Clear for new message
+    this.selectedMessage = null;
+  }
+
+  cancelComposition(): void {
+    this.isComposing = false;
+    this.isReplying = false;
+    this.currentMessageContent = '';
+    this.newMessageToPatientId = '';
+    this.replyingToPatientName = ''; // Clear patient name on cancel
+    this.newMessageSubject = '';
+    this.newMessageContent = ''; // Clear for consistency
+    this.replyContent = ''; // Clear for consistency
+  }
+
+  sendMessage(): void {
+    const recipientPatient = this.availablePatients.find(
+      (p) => p.id === this.newMessageToPatientId
+    );
+    const recipientName = recipientPatient
+      ? recipientPatient.name
+      : 'Unknown Patient';
+    let messageToSend = '';
+
+    if (this.isReplying) {
+      messageToSend = this.currentMessageContent; // Use currentMessageContent for reply
+      console.log('Sending reply to patient:', {
+        patientId: this.newMessageToPatientId,
+        subject: this.newMessageSubject,
+        content: messageToSend,
+      });
+      const newReply: Message = {
+        id: `msgDoc${Date.now()}`,
+        sender: 'doctor',
+        senderName: this.currentDoctorName,
+        receiverName: recipientName,
+        patientId: this.newMessageToPatientId,
+        subject: this.newMessageSubject,
+        content: messageToSend,
+        timestamp: new Date(),
+        read: true,
+        isSenderDoctor: true,
+      };
+      this.messages.unshift(newReply);
+    } else if (this.isComposing) {
+      messageToSend = this.currentMessageContent; // Use currentMessageContent for new message
+      console.log('Sending new message to patient:', {
+        patientId: this.newMessageToPatientId,
+        subject: this.newMessageSubject,
+        content: messageToSend,
+      });
+      const newMessage: Message = {
+        id: `msgDoc${Date.now()}`,
+        sender: 'doctor',
+        senderName: this.currentDoctorName,
+        receiverName: recipientName,
+        patientId: this.newMessageToPatientId,
+        subject: this.newMessageSubject,
+        content: messageToSend,
+        timestamp: new Date(),
+        read: true,
+        isSenderDoctor: true,
+      };
+      this.messages.unshift(newMessage);
+    }
+    this.messages.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    this.cancelComposition();
   }
 }

@@ -168,6 +168,123 @@
           Reply to Patient
         </button>
       </div>
+
+      <div class="mt-6 pt-4 border-t border-gray-200">
+        <button
+          *ngIf="!selectedMessage.isSenderDoctor"
+          (click)="startReplyToPatient()"
+          class="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-50 flex items-center"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5 mr-2"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          Reply to Patient
+        </button>
+      </div>
     </div>
+  </div>
+
+  <!-- New/Reply Message Composition Form -->
+  <div *ngIf="isComposing || isReplying" class="mt-6">
+    <h2 class="text-xl font-semibold text-gray-700 mb-4">
+      {{ isReplying ? "Reply to Patient" : "Compose New Message to Patient" }}
+    </h2>
+    <form (ngSubmit)="sendMessage()" class="space-y-4">
+      <div>
+        <label
+          for="messageToPatient"
+          class="block text-sm font-medium text-gray-700"
+          >To:</label
+        >
+        <select
+          *ngIf="isComposing"
+          id="messageToPatient"
+          name="messageToPatient"
+          [(ngModel)]="newMessageToPatientId"
+          required
+          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
+        >
+          <option value="" disabled>Select a patient</option>
+          <option
+            *ngFor="let patient of availablePatients"
+            [value]="patient.id"
+          >
+            {{ patient.name }}
+          </option>
+        </select>
+        <input
+          *ngIf="isReplying"
+          type="text"
+          id="messageToPatientName"
+          name="messageToPatientName"
+          [value]="replyingToPatientName"
+          readonly
+          class="mt-1 block w-full px-3 py-2 border border-gray-300 bg-gray-100 rounded-md shadow-sm sm:text-sm"
+        />
+      </div>
+
+      <div>
+        <label
+          for="messageSubject"
+          class="block text-sm font-medium text-gray-700"
+          >Subject:</label
+        >
+        <input
+          type="text"
+          id="messageSubject"
+          name="messageSubject"
+          [(ngModel)]="newMessageSubject"
+          required
+          [readonly]="isReplying"
+          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
+        />
+      </div>
+
+      <div>
+        <label
+          for="messageContent"
+          class="block text-sm font-medium text-gray-700"
+          >Message:</label
+        >
+        <textarea
+          id="messageContent"
+          name="messageContent"
+          rows="6"
+          [(ngModel)]="currentMessageContent"
+          required
+          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
+        ></textarea>
+      </div>
+
+      <div class="flex justify-end space-x-3">
+        <button
+          type="button"
+          (click)="cancelComposition()"
+          class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded-md text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
+          [disabled]="
+            !newMessageToPatientId ||
+            !newMessageSubject ||
+            !currentMessageContent
+          "
+        >
+          Send
+        </button>
+      </div>
+    </form>
   </div>
 </div>

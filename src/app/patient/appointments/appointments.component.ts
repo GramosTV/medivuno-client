@@ -35,6 +35,15 @@ export class AppointmentsComponent implements OnInit {
   activeDayIsOpen: boolean = false;
   CalendarView = CalendarView; // Make enum available in template
 
+  // Add the missing onHourSegmentClicked method
+  onHourSegmentClicked(event: { date: Date }): void {
+    console.log('Hour segment clicked in patient appointments', event.date);
+    // Implement actual logic if needed
+    this.viewDate = event.date;
+    this.view = CalendarView.Day;
+    this.activeDayIsOpen = false;
+  }
+
   constructor() {}
 
   ngOnInit(): void {

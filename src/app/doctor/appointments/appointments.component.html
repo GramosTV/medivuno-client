@@ -8,11 +8,11 @@
       [view]="view"
       [viewDate]="viewDate"
       [events]="calendarEvents"
-      [activeDayIsOpen]="activeDayIsOpen"
+      (dayClickedOutput)="onDayClicked($event)"
+      (eventClickedOutput)="handleEvent('Clicked', $event.event)"
+      (hourSegmentClickedOutput)="onHourSegmentClicked($event)"
       (viewChanged)="onViewChanged($event)"
       (viewDateChanged)="onViewDateChanged($event)"
-      (dayClicked)="onDayClicked($event)"
-      (eventClicked)="handleEvent('Clicked', $event.event)"
     >
     </app-calendar-view>
   </div>

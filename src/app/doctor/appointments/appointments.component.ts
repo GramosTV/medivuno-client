@@ -184,6 +184,13 @@ export class AppointmentsComponent implements OnInit {
     }
   }
 
+  onHourSegmentClicked(event: { date: Date }): void {
+    console.log('Hour segment clicked in doctor appointments', event.date);
+    this.viewDate = event.date;
+    this.view = CalendarView.Day;
+    this.activeDayIsOpen = false;
+  }
+
   handleEvent(action: string, event: CustomCalendarEvent): void {
     console.log('Event action:', action, 'Event:', event);
     const originalAppt = event.meta.originalAppointment as Appointment;
