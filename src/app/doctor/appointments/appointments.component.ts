@@ -1,21 +1,25 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CalendarView } from 'angular-calendar';
-import { parse, startOfDay, endOfDay, addHours, isSameDay } from 'date-fns';
+import {
+  parse,
+  startOfDay,
+  endOfDay,
+  addHours,
+  isSameDay,
+  format,
+} from 'date-fns';
 
 import {
   CalendarViewComponent,
   CustomCalendarEvent,
 } from '../../shared/calendar-view/calendar-view.component';
-
-interface Appointment {
-  id: string;
-  patientName: string;
-  appointmentDate: string;
-  appointmentTime: string;
-  reason: string;
-  status: 'Confirmed' | 'Completed' | 'Cancelled';
-}
+import {
+  AppointmentService,
+  Appointment,
+  AppointmentStatus,
+} from '../../shared/services/appointment.service';
+import { finalize } from 'rxjs/operators';
 
 @Component({
   selector: 'app-doctor-appointments',
@@ -26,6 +30,8 @@ interface Appointment {
 })
 export class AppointmentsComponent implements OnInit {
   scheduledAppointments: Appointment[] = [];
+  loading = false;
+  error: string | null = null;
 
   // Calendar properties
   view: CalendarView = CalendarView.Month;
@@ -34,16 +40,30 @@ export class AppointmentsComponent implements OnInit {
   activeDayIsOpen: boolean = false;
   CalendarView = CalendarView;
 
-  constructor() {}
-
+  constructor(private appointmentService: AppointmentService) {}
   ngOnInit(): void {
-    this.scheduledAppointments = [
-      {
-        id: 'd_appt1',
-        patientName: 'John Doe',
-        appointmentDate: '2025-05-15',
-        appointmentTime: '10:00 AM',
-        reason: 'Routine check-up',
+    this.loadAppointments();
+  }
+
+  loadAppointments(): void {
+    this.loading = true;
+    this.error = null;
+    
+    this.appointmentService.getDoctorAppointments()
+      .subscribe({
+        next: (appointments) => {
+          console.log('Doctor appointments loaded:', appointments);
+          this.scheduledAppointments = appointments;
+          this.loadCalendarEvents();
+          this.loading = false;
+        },
+        error: (error) => {
+          console.error('Error loading doctor appointments:', error);
+          this.error = 'Failed to load appointments. Please try again.';
+          this.loading = false;
+        }
+      });
+  }
         status: 'Confirmed',
       },
       {

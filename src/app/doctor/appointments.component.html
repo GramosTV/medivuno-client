@@ -1,0 +1,124 @@
+<div class="container mx-auto p-6 bg-gray-50 min-h-screen">
+  <h1 class="text-3xl font-bold text-gray-800 mb-8">
+    Doctor Dashboard - Appointments
+  </h1>
+
+  <!-- Loading indicator -->
+  <div *ngIf="loading" class="bg-white p-6 rounded-lg shadow text-center mb-8">
+    <p class="text-gray-600">Loading appointments...</p>
+  </div>
+
+  <!-- Error message -->
+  <div *ngIf="error" class="bg-red-50 border-l-4 border-red-500 p-4 mb-8">
+    <p class="text-red-700">{{ error }}</p>
+    <button
+      (click)="loadAppointments()"
+      class="mt-2 text-blue-600 hover:underline"
+    >
+      Try Again
+    </button>
+  </div>
+
+  <!-- Calendar View -->
+  <div
+    *ngIf="!loading && !error"
+    class="bg-white p-4 rounded-lg shadow-xl mb-12"
+  >
+    <app-calendar-view
+      [view]="view"
+      [viewDate]="viewDate"
+      [events]="calendarEvents"
+      (dayClickedOutput)="onDayClicked($event)"
+      (eventClickedOutput)="handleEvent('Clicked', $event.event)"
+      (hourSegmentClickedOutput)="onHourSegmentClicked($event)"
+      (viewChanged)="onViewChanged($event)"
+      (viewDateChanged)="onViewDateChanged($event)"
+    >
+    </app-calendar-view>
+  </div>
+
+  <!-- Appointments List -->
+  <h2 class="text-2xl font-semibold text-gray-700 mb-6">
+    Upcoming Appointments
+  </h2>
+
+  <div *ngIf="loading" class="text-center py-8">
+    <p>Loading appointments...</p>
+  </div>
+
+  <div
+    *ngIf="!loading && scheduledAppointments.length === 0"
+    class="bg-white p-6 rounded-lg shadow text-center"
+  >
+    <p class="text-gray-600">No upcoming appointments found.</p>
+  </div>
+
+  <div *ngIf="scheduledAppointments.length > 0" class="space-y-6">
+    <div
+      *ngFor="let appt of scheduledAppointments"
+      class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300"
+      [class.border-l-4]="updatingAppointmentId === appt.id"
+      [class.border-blue-500]="updatingAppointmentId === appt.id"
+    >
+      <div class="md:flex md:justify-between items-start mb-4">
+        <div>
+          <h3 class="text-xl font-semibold text-blue-700 mb-1">
+            {{ getPatientName(appt.patient) }}
+          </h3>
+          <p class="text-gray-700">
+            <span class="font-medium">Date:</span>
+            {{ formatDate(appt.appointmentDateTime) }}
+          </p>
+          <p class="text-gray-700">
+            <span class="font-medium">Time:</span>
+            {{ formatTime(appt.appointmentDateTime) }}
+          </p>
+          <p *ngIf="appt.reasonForVisit" class="text-sm text-gray-600 mt-1">
+            <span class="font-medium">Reason:</span> {{ appt.reasonForVisit }}
+          </p>
+        </div>
+        <div class="mt-4 md:mt-0 md:text-right">
+          <span
+            class="px-3 py-1 text-xs font-semibold rounded-full inline-block"
+            [ngClass]="{
+              'bg-blue-100 text-blue-800': appt.status === 'PENDING',
+              'bg-green-100 text-green-800': appt.status === 'CONFIRMED',
+              'bg-gray-200 text-gray-800': appt.status === 'COMPLETED',
+              'bg-red-100 text-red-800': appt.status === 'CANCELLED'
+            }"
+          >
+            {{ appt.status }}
+          </span>
+
+          <div class="mt-2" *ngIf="!updatingAppointmentId">
+            <button
+              *ngIf="appt.status === 'PENDING'"
+              (click)="confirmAppointment(appt.id)"
+              class="text-xs bg-green-500 hover:bg-green-600 text-white font-semibold py-1 px-2 rounded mr-1"
+            >
+              Confirm
+            </button>
+            <button
+              *ngIf="appt.status === 'CONFIRMED'"
+              (click)="markAsCompleted(appt.id)"
+              class="text-xs bg-blue-500 hover:bg-blue-600 text-white font-semibold py-1 px-2 rounded mr-1"
+            >
+              Complete
+            </button>
+            <button
+              *ngIf="appt.status !== 'CANCELLED' && appt.status !== 'COMPLETED'"
+              (click)="cancelAppointment(appt.id)"
+              class="text-xs bg-red-500 hover:bg-red-600 text-white font-semibold py-1 px-2 rounded"
+            >
+              Cancel
+            </button>
+          </div>
+
+          <div *ngIf="updatingAppointmentId === appt.id" class="mt-2">
+            <span class="text-xs text-gray-600">Updating...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

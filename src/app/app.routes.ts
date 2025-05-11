@@ -12,14 +12,14 @@ export const routes: Routes = [
     loadChildren: () =>
       import('./patient/patient.module').then((m) => m.PatientModule),
     canActivate: [authGuard],
-    data: { roles: ['patient'] },
+    data: { roles: ['patient', 'user'] },
   },
   {
     path: 'doctor',
     loadChildren: () =>
       import('./doctor/doctor.module').then((m) => m.DoctorModule),
     canActivate: [authGuard],
-    data: { roles: ['doctor'] },
+    data: { roles: ['doctor', 'admin'] },
   },
   { path: 'coming-soon', component: ComingSoonComponent },
   { path: '', redirectTo: '/auth/login', pathMatch: 'full' },

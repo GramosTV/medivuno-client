@@ -1,7 +1,21 @@
 <div class="container mx-auto p-6 bg-gray-50 min-h-screen">
   <h1 class="text-3xl font-bold text-gray-800 mb-8">Book an Appointment</h1>
 
+  <!-- Loading indicator -->
+  <div *ngIf="loading" class="bg-white p-6 rounded-lg shadow text-center mb-8">
+    <p class="text-gray-600">Loading...</p>
+  </div>
+
+  <!-- Error message -->
+  <div *ngIf="error" class="bg-red-50 border-l-4 border-red-500 p-4 mb-8">
+    <p class="text-red-700">{{ error }}</p>
+    <button (click)="ngOnInit()" class="mt-2 text-blue-600 hover:underline">
+      Try Again
+    </button>
+  </div>
+
   <form
+    *ngIf="!loading"
     [formGroup]="bookingForm"
     (ngSubmit)="onSubmit()"
     class="bg-white p-8 rounded-lg shadow-xl max-w-2xl mx-auto"

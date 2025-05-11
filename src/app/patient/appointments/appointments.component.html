@@ -23,9 +23,20 @@
     >
     </app-calendar-view>
   </div>
+  <!-- Loading and Error States -->
+  <div *ngIf="loading" class="bg-white p-6 rounded-lg shadow text-center mb-8">
+    <p class="text-gray-600">Loading your appointments...</p>
+  </div>
+
+  <div *ngIf="error" class="bg-red-50 border-l-4 border-red-500 p-4 mb-8">
+    <p class="text-red-700">{{ error }}</p>
+    <button (click)="ngOnInit()" class="mt-2 text-blue-600 hover:underline">
+      Try Again
+    </button>
+  </div>
 
   <!-- Upcoming Appointments -->
-  <div class="mb-12">
+  <div *ngIf="!loading" class="mb-12">
     <h2 class="text-2xl font-semibold text-gray-700 mb-6">
       Upcoming Appointments
     </h2>
@@ -52,15 +63,19 @@
           class="px-3 py-1 text-xs font-semibold rounded-full"
           [ngClass]="{
             'bg-green-100 text-green-800': appt.status === 'Confirmed',
+            'bg-yellow-100 text-yellow-800': appt.status === 'Pending',
             'bg-red-100 text-red-800': appt.status === 'Cancelled'
           }"
         >
           {{ appt.status }}
         </span>
+        <div *ngIf="appt.reasonForVisit" class="mt-3 text-sm text-gray-700">
+          <span class="font-medium">Reason: </span>{{ appt.reasonForVisit }}
+        </div>
         <div class="mt-4 pt-4 border-t border-gray-200">
           <button
             (click)="cancelAppointment(appt.id)"
-            *ngIf="appt.status === 'Confirmed'"
+            *ngIf="appt.status === 'Confirmed' || appt.status === 'Pending'"
             class="w-full text-sm text-red-500 hover:text-red-700 font-medium py-2 px-3 rounded-md hover:bg-red-50 transition duration-150"
           >
             Cancel Appointment
@@ -76,7 +91,7 @@
   </div>
 
   <!-- Past Appointments -->
-  <div>
+  <div *ngIf="!loading">
     <h2 class="text-2xl font-semibold text-gray-700 mb-6">Past Appointments</h2>
     <div
       *ngIf="pastAppointments.length > 0; else noPastAppointments"

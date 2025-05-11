@@ -22,6 +22,7 @@ import { CommonModule } from '@angular/common'; // Import CommonModule
 })
 export class RegisterComponent {
   registerForm: FormGroup;
+  registrationError: string | null = null; // To display registration errors
 
   constructor(
     private fb: FormBuilder,
@@ -30,11 +31,11 @@ export class RegisterComponent {
   ) {
     this.registerForm = this.fb.group(
       {
-        name: ['', Validators.required],
+        firstName: ['', Validators.required], // Changed from name to firstName
+        lastName: ['', Validators.required], // Added lastName
         email: ['', [Validators.required, Validators.email]],
         password: ['', [Validators.required, Validators.minLength(6)]],
         confirmPassword: ['', Validators.required],
-        role: ['patient', Validators.required], // Default role
       },
       { validator: this.passwordMatchValidator }
     );
@@ -48,20 +49,22 @@ export class RegisterComponent {
 
   onSubmit(): void {
     if (this.registerForm.valid) {
-      const { email, role } = this.registerForm.value;
-      // In a real app, you would call an AuthService.register() method here.
-      // For now, we'll simulate registration by directly logging in.
+      this.registrationError = null; // Clear previous errors
+      const { firstName, lastName, email, password } = this.registerForm.value;
       this.authService
-        .login(role as 'patient' | 'doctor')
-        .subscribe((success) => {
-          if (success) {
-            // Navigation is handled by AuthService upon successful login
-            console.log('Registration successful, navigating...');
-          } else {
-            // Handle registration failure
-            console.error('Registration failed');
-            this.registerForm.setErrors({ registrationFailed: true });
-          }
+        .register({ firstName, lastName, email, password })
+        .subscribe({
+          next: (user) => {
+            console.log('Registration successful', user);
+            // Navigate to login page after successful registration
+            this.router.navigate(['/auth/login']);
+            // Optionally, show a success message/toast before navigating
+          },
+          error: (err) => {
+            console.error('Registration failed', err);
+            this.registrationError =
+              err.message || 'An unknown registration error occurred.';
+          },
         });
     }
   }
