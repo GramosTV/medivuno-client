@@ -1,13 +1,173 @@
-<div class="container mx-auto p-6 bg-gray-50 min-h-screen">
-  <h1 class="text-3xl font-bold text-gray-800 mb-8">Doctor Messages</h1>
-  
-  <div class="bg-white p-8 rounded-lg shadow-xl max-w-4xl mx-auto">
-    <div class="text-center text-gray-500">
-      <svg class="w-16 h-16 mx-auto text-teal-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
-      <p class="text-lg">This section will allow you to securely communicate with your patients.</p>
-      <p class="mt-2">Currently, there are no messages available to display.</p>
-      <p class="mt-4 text-sm">You will be notified when new messages arrive from patients.</p>
+<div class="container mx-auto p-4 sm:p-6 bg-gray-50 min-h-screen">
+  <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 sm:mb-8">
+    Doctor Messages
+  </h1>
+
+  <!-- New Message Button -->
+  <div class="mb-6 text-right">
+    <button
+      (click)="createNewMessageToPatient()"
+      class="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-50"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-5 w-5 inline-block mr-2 -mt-1"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+      >
+        <path
+          fill-rule="evenodd"
+          d="M10 3a1 1 0 011 1v4h4a1 1 0 110 2h-4v4a1 1 0 11-2 0v-4H5a1 1 0 110-2h4V4a1 1 0 011-1z"
+          clip-rule="evenodd"
+        />
+      </svg>
+      Compose Message to Patient
+    </button>
+  </div>
+
+  <div
+    class="bg-white p-4 sm:p-6 md:p-8 rounded-lg shadow-xl max-w-5xl mx-auto"
+  >
+    <div *ngIf="!selectedMessage">
+      <h2 class="text-xl font-semibold text-gray-700 mb-4">Inbox</h2>
+      <div *ngIf="messages.length > 0; else noMessages" class="space-y-3">
+        <div
+          *ngFor="let message of messages"
+          (click)="viewMessage(message)"
+          class="p-4 border rounded-lg hover:bg-gray-100 cursor-pointer transition duration-150 ease-in-out 
+                 {{
+            message.read || message.isSenderDoctor
+              ? 'border-gray-200 bg-white'
+              : 'border-sky-300 bg-sky-50 font-medium'
+          }}"
+        >
+          <div class="flex justify-between items-center mb-1">
+            <span
+              class="text-sm {{
+                message.read || message.isSenderDoctor
+                  ? 'text-gray-600'
+                  : 'text-sky-700'
+              }}"
+            >
+              <span *ngIf="message.isSenderDoctor"
+                >To: {{ message.receiverName }}</span
+              >
+              <span *ngIf="!message.isSenderDoctor"
+                >From: {{ message.senderName }} (Patient)</span
+              >
+            </span>
+            <span class="text-xs text-gray-500">{{
+              message.timestamp | date : "short"
+            }}</span>
+          </div>
+          <p
+            class="text-md {{
+              message.read || message.isSenderDoctor
+                ? 'text-gray-800'
+                : 'text-sky-800'
+            }} truncate"
+          >
+            {{ message.subject }}
+          </p>
+          <p class="text-sm text-gray-600 truncate">{{ message.content }}</p>
+        </div>
+      </div>
+      <ng-template #noMessages>
+        <div class="text-center text-gray-500 py-10">
+          <svg
+            class="w-16 h-16 mx-auto text-teal-500 mb-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+            ></path>
+          </svg>
+          <p class="text-lg">Your inbox is empty.</p>
+          <p class="mt-2">You have no messages at this time.</p>
+        </div>
+      </ng-template>
     </div>
-    <!-- Placeholder for future content like a list of patient conversations, message threads, etc. -->
+
+    <div *ngIf="selectedMessage">
+      <button
+        (click)="closeMessageView()"
+        class="mb-4 text-sky-600 hover:text-sky-800 font-medium flex items-center"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-5 w-5 mr-2"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H15a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
+            clip-rule="evenodd"
+          />
+        </svg>
+        Back to Inbox
+      </button>
+      <h2 class="text-xl font-semibold text-gray-700 mb-1">
+        {{ selectedMessage.subject }}
+      </h2>
+      <div class="text-sm text-gray-500 mb-3">
+        <p>
+          <span class="font-semibold">From:</span>
+          {{ selectedMessage.senderName }}
+          <span *ngIf="!selectedMessage.isSenderDoctor">(Patient)</span>
+        </p>
+        <p>
+          <span class="font-semibold">To:</span>
+          {{ selectedMessage.receiverName }}
+          <span *ngIf="selectedMessage.isSenderDoctor">(Patient)</span>
+        </p>
+        <p>
+          <span class="font-semibold">Date:</span>
+          {{ selectedMessage.timestamp | date : "medium" }}
+        </p>
+        <p *ngIf="selectedMessage.patientId">
+          <span class="font-semibold">Regarding Patient:</span>
+          {{
+            selectedMessage.sender === "patient"
+              ? selectedMessage.senderName
+              : selectedMessage.receiverName
+          }}
+          (ID: {{ selectedMessage.patientId }})
+        </p>
+      </div>
+      <div
+        class="prose max-w-none p-4 bg-gray-50 rounded-md border border-gray-200 whitespace-pre-wrap"
+      >
+        {{ selectedMessage.content }}
+      </div>
+
+      <div class="mt-6 text-right">
+        <button
+          *ngIf="!selectedMessage.isSenderDoctor"
+          (click)="replyToMessage(selectedMessage)"
+          class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5 inline-block mr-2 -mt-1"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          Reply to Patient
+        </button>
+      </div>
+    </div>
   </div>
 </div>

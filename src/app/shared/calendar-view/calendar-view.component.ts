@@ -136,7 +136,15 @@ export class CalendarViewComponent implements OnInit {
     this.viewDateChanged.emit(this.viewDate);
   }
 
-  onEventClicked(action: string, event: CustomCalendarEvent): void {
+  onEventClicked({
+    event,
+    sourceEvent,
+  }: {
+    event: CustomCalendarEvent;
+    sourceEvent: MouseEvent | KeyboardEvent;
+  }): void {
+    // console.log('Event Clicked', event);
+    // console.log('Source Event', sourceEvent);
     this.eventClicked.emit({ event });
   }
 
