@@ -32,7 +32,8 @@
       >
         <option value="" disabled>Choose a doctor</option>
         <option *ngFor="let doc of doctors" [value]="doc.id">
-          {{ doc.name }} - {{ doc.specialty }}
+          {{ doc.firstName }} {{ doc.lastName }} -
+          {{ doc.specialization || "General" }}
         </option>
       </select>
       <div
