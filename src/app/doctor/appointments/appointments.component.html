@@ -2,6 +2,59 @@
   <h1 class="text-3xl font-bold text-gray-800 mb-8">
     Scheduled Appointments - Calendar
   </h1>
+  <div
+    *ngIf="error"
+    class="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-md"
+  >
+    <div class="flex">
+      <div class="flex-shrink-0">
+        <svg
+          class="h-5 w-5 text-red-400"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </div>
+      <div class="ml-3">
+        <p class="text-sm text-red-700">{{ error }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Real-time notification -->
+  <div
+    *ngIf="notification"
+    class="mb-6 p-4 rounded-md animate__animated animate__fadeIn animate__faster"
+    [ngClass]="{
+      'bg-green-50 border-l-4 border-green-400':
+        notification.type === 'created',
+      'bg-blue-50 border-l-4 border-blue-400': notification.type === 'updated',
+      'bg-red-50 border-l-4 border-red-400': notification.type === 'cancelled',
+      'bg-yellow-50 border-l-4 border-yellow-400':
+        notification.type === 'reminder'
+    }"
+  >
+    <div class="flex">
+      <div class="ml-3">
+        <p
+          class="text-sm"
+          [ngClass]="{
+            'text-green-700': notification.type === 'created',
+            'text-blue-700': notification.type === 'updated',
+            'text-red-700': notification.type === 'cancelled',
+            'text-yellow-700': notification.type === 'reminder'
+          }"
+        >
+          {{ notification.message }}
+        </p>
+      </div>
+    </div>
+  </div>
 
   <div class="bg-white p-4 rounded-lg shadow-xl mb-12">
     <app-calendar-view
@@ -18,8 +71,16 @@
   </div>
 
   <h2 class="text-2xl font-semibold text-gray-700 mb-6">Appointments List</h2>
+
+  <!-- Loading indicator -->
+  <div *ngIf="loading" class="flex justify-center my-8">
+    <div
+      class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"
+    ></div>
+  </div>
+
   <div
-    *ngIf="scheduledAppointments.length > 0; else noAppointments"
+    *ngIf="!loading && scheduledAppointments.length > 0; else noAppointments"
     class="space-y-6"
   >
     <div
@@ -29,42 +90,55 @@
       <div class="md:flex md:justify-between items-start mb-4">
         <div>
           <h3 class="text-xl font-semibold text-blue-700 mb-1">
-            {{ appt.patientName }}
+            {{ appt.patient.firstName }} {{ appt.patient.lastName }}
           </h3>
           <p class="text-gray-700">
             <span class="font-medium">Date:</span>
-            {{ appt.appointmentDate | date : "fullDate" }}
+            {{ appt.appointmentDateTime | date : "fullDate" }}
           </p>
           <p class="text-gray-700">
-            <span class="font-medium">Time:</span> {{ appt.appointmentTime }}
+            <span class="font-medium">Time:</span>
+            {{ appt.appointmentDateTime | date : "shortTime" }}
           </p>
-          <p *ngIf="appt.reason" class="text-sm text-gray-600 mt-1">
-            <span class="font-medium">Reason:</span> {{ appt.reason }}
+          <p *ngIf="appt.reasonForVisit" class="text-sm text-gray-600 mt-1">
+            <span class="font-medium">Reason:</span> {{ appt.reasonForVisit }}
+          </p>
+          <p *ngIf="appt.durationMinutes" class="text-sm text-gray-600">
+            <span class="font-medium">Duration:</span>
+            {{ appt.durationMinutes }} minutes
           </p>
         </div>
         <div class="mt-4 md:mt-0 md:text-right">
           <span
             class="px-3 py-1 text-xs font-semibold rounded-full inline-block"
             [ngClass]="{
-              'bg-green-100 text-green-800': appt.status === 'Confirmed',
-              'bg-gray-200 text-gray-800': appt.status === 'Completed',
-              'bg-red-100 text-red-800': appt.status === 'Cancelled'
+              'bg-green-100 text-green-800': appt.status === 'CONFIRMED',
+              'bg-gray-200 text-gray-800': appt.status === 'COMPLETED',
+              'bg-red-100 text-red-800': appt.status === 'CANCELLED',
+              'bg-yellow-100 text-yellow-800': appt.status === 'PENDING'
             }"
           >
-            {{ appt.status }}
+            {{ appt.status.charAt(0) + appt.status.slice(1).toLowerCase() }}
           </span>
         </div>
       </div>
 
       <div
         class="mt-4 pt-4 border-t border-gray-200 flex flex-wrap gap-2 justify-end"
-        *ngIf="appt.status === 'Confirmed'"
+        *ngIf="appt.status === 'CONFIRMED' || appt.status === 'PENDING'"
       >
         <button
           (click)="markAsCompleted(appt.id)"
           class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-md text-sm transition duration-150"
         >
           Mark as Completed
+        </button>
+        <button
+          *ngIf="appt.status === 'PENDING'"
+          (click)="confirmAppointment(appt.id)"
+          class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md text-sm transition duration-150"
+        >
+          Confirm Appointment
         </button>
         <button
           (click)="cancelAppointment(appt.id)"
@@ -75,7 +149,7 @@
       </div>
       <div
         class="mt-4 pt-4 border-t border-gray-200 text-right"
-        *ngIf="appt.status === 'Completed' || appt.status === 'Cancelled'"
+        *ngIf="appt.status === 'COMPLETED' || appt.status === 'CANCELLED'"
       >
         <p class="text-sm text-gray-500">
           This appointment is {{ appt.status.toLowerCase() }}.
@@ -85,7 +159,7 @@
   </div>
 
   <ng-template #noAppointments>
-    <div class="bg-white p-8 rounded-lg shadow-xl text-center">
+    <div *ngIf="!loading" class="bg-white p-8 rounded-lg shadow-xl text-center">
       <svg
         class="mx-auto h-12 w-12 text-gray-400"
         fill="none"
@@ -101,9 +175,9 @@
           d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
         />
       </svg>
-      <h3 class="mt-2 text-lg font-medium text-gray-900">No appointments</h3>
+      <h3 class="mt-2 text-sm font-semibold text-gray-900">No appointments</h3>
       <p class="mt-1 text-sm text-gray-500">
-        You currently have no scheduled appointments.
+        You currently have no appointments scheduled.
       </p>
     </div>
   </ng-template>

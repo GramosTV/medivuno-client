@@ -28,9 +28,53 @@
   <div
     class="bg-white p-4 sm:p-6 md:p-8 rounded-lg shadow-xl max-w-5xl mx-auto"
   >
-    <div *ngIf="!selectedMessage">
+    <!-- Tab Selection -->
+    <div
+      *ngIf="!selectedMessage && !isComposing && !isReplying"
+      class="mb-6 border-b border-gray-200"
+    >
+      <div class="flex space-x-8">
+        <button
+          class="pb-4 border-b-2 font-medium text-sm focus:outline-none"
+          [class.border-sky-500]="activeTab === 'inbox'"
+          [class.text-sky-600]="activeTab === 'inbox'"
+          [class.border-transparent]="activeTab !== 'inbox'"
+          [class.text-gray-500]="activeTab !== 'inbox'"
+          (click)="setActiveTab('inbox')"
+        >
+          Inbox
+        </button>
+        <button
+          class="pb-4 border-b-2 font-medium text-sm focus:outline-none"
+          [class.border-sky-500]="activeTab === 'sent'"
+          [class.text-sky-600]="activeTab === 'sent'"
+          [class.border-transparent]="activeTab !== 'sent'"
+          [class.text-gray-500]="activeTab !== 'sent'"
+          (click)="setActiveTab('sent')"
+        >
+          Sent Messages
+        </button>
+      </div>
+    </div>
+
+    <!-- Inbox View -->
+    <div
+      *ngIf="
+        !selectedMessage && activeTab === 'inbox' && !isComposing && !isReplying
+      "
+    >
       <h2 class="text-xl font-semibold text-gray-700 mb-4">Inbox</h2>
-      <div *ngIf="messages.length > 0; else noMessages" class="space-y-3">
+      <div *ngIf="loading" class="text-center py-10">
+        <div
+          class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-sky-500 border-t-transparent"
+        ></div>
+        <p class="mt-2 text-gray-500">Loading messages...</p>
+      </div>
+
+      <div
+        *ngIf="!loading && messages.length > 0; else noMessages"
+        class="space-y-3"
+      >
         <div
           *ngFor="let message of messages"
           (click)="viewMessage(message)"
@@ -49,12 +93,7 @@
                   : 'text-sky-700'
               }}"
             >
-              <span *ngIf="message.isSenderDoctor"
-                >To: {{ message.receiverName }}</span
-              >
-              <span *ngIf="!message.isSenderDoctor"
-                >From: {{ message.senderName }} (Patient)</span
-              >
+              From: {{ message.senderName }}
             </span>
             <span class="text-xs text-gray-500">{{
               message.timestamp | date : "short"
@@ -72,10 +111,48 @@
           <p class="text-sm text-gray-600 truncate">{{ message.content }}</p>
         </div>
       </div>
-      <ng-template #noMessages>
-        <div class="text-center text-gray-500 py-10">
+    </div>
+
+    <!-- Sent Messages View -->
+    <div
+      *ngIf="
+        !selectedMessage && activeTab === 'sent' && !isComposing && !isReplying
+      "
+    >
+      <h2 class="text-xl font-semibold text-gray-700 mb-4">Sent Messages</h2>
+      <div *ngIf="loading" class="text-center py-10">
+        <div
+          class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-sky-500 border-t-transparent"
+        ></div>
+        <p class="mt-2 text-gray-500">Loading sent messages...</p>
+      </div>
+
+      <div
+        *ngIf="!loading && sentMessages.length > 0; else noSentMessages"
+        class="space-y-3"
+      >
+        <div
+          *ngFor="let message of sentMessages"
+          (click)="viewMessage(message)"
+          class="p-4 border rounded-lg hover:bg-gray-100 cursor-pointer transition duration-150 ease-in-out border-gray-200 bg-white"
+        >
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-sm text-gray-600">
+              To: {{ message.receiverName }}
+            </span>
+            <span class="text-xs text-gray-500">{{
+              message.timestamp | date : "short"
+            }}</span>
+          </div>
+          <p class="text-md text-gray-800 truncate">{{ message.subject }}</p>
+          <p class="text-sm text-gray-600 truncate">{{ message.content }}</p>
+        </div>
+      </div>
+
+      <ng-template #noSentMessages>
+        <div *ngIf="!loading" class="text-center text-gray-500 py-10">
           <svg
-            class="w-16 h-16 mx-auto text-teal-500 mb-4"
+            class="w-16 h-16 mx-auto text-yellow-400 mb-4"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -85,16 +162,38 @@
               stroke-linecap="round"
               stroke-linejoin="round"
               stroke-width="2"
-              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
             ></path>
           </svg>
-          <p class="text-lg">Your inbox is empty.</p>
-          <p class="mt-2">You have no messages at this time.</p>
+          <p class="text-lg">No sent messages</p>
+          <p class="mt-2">You haven't sent any messages yet.</p>
         </div>
       </ng-template>
     </div>
 
-    <div *ngIf="selectedMessage">
+    <ng-template #noMessages>
+      <div *ngIf="!loading" class="text-center text-gray-500 py-10">
+        <svg
+          class="w-16 h-16 mx-auto text-yellow-400 mb-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+          ></path>
+        </svg>
+        <p class="text-lg">Your inbox is empty.</p>
+        <p class="mt-2">You have no messages at this time.</p>
+      </div>
+    </ng-template>
+
+    <!-- Message Detail View -->
+    <div *ngIf="selectedMessage && !isReplying && !isComposing">
       <button
         (click)="closeMessageView()"
         class="mb-4 text-sky-600 hover:text-sky-800 font-medium flex items-center"
@@ -111,67 +210,26 @@
             clip-rule="evenodd"
           />
         </svg>
-        Back to Inbox
+        Back to {{ activeTab === "inbox" ? "Inbox" : "Sent Messages" }}
       </button>
       <h2 class="text-xl font-semibold text-gray-700 mb-1">
         {{ selectedMessage.subject }}
       </h2>
       <div class="text-sm text-gray-500 mb-3">
-        <p>
-          <span class="font-semibold">From:</span>
-          {{ selectedMessage.senderName }}
-          <span *ngIf="!selectedMessage.isSenderDoctor">(Patient)</span>
-        </p>
-        <p>
-          <span class="font-semibold">To:</span>
-          {{ selectedMessage.receiverName }}
-          <span *ngIf="selectedMessage.isSenderDoctor">(Patient)</span>
-        </p>
-        <p>
-          <span class="font-semibold">Date:</span>
-          {{ selectedMessage.timestamp | date : "medium" }}
-        </p>
-        <p *ngIf="selectedMessage.patientId">
-          <span class="font-semibold">Regarding Patient:</span>
-          {{
-            selectedMessage.sender === "patient"
-              ? selectedMessage.senderName
-              : selectedMessage.receiverName
-          }}
-          (ID: {{ selectedMessage.patientId }})
-        </p>
+        <p>From: {{ selectedMessage.senderName }}</p>
+        <p>To: {{ selectedMessage.receiverName }}</p>
+        <p>Date: {{ selectedMessage.timestamp | date : "medium" }}</p>
       </div>
       <div
-        class="prose max-w-none p-4 bg-gray-50 rounded-md border border-gray-200 whitespace-pre-wrap"
+        class="prose max-w-none p-4 bg-gray-50 rounded-md border border-gray-200"
       >
-        {{ selectedMessage.content }}
+        <p>{{ selectedMessage.content }}</p>
       </div>
-
-      <div class="mt-6 text-right">
+      <div
+        *ngIf="!selectedMessage.isSenderDoctor"
+        class="mt-6 pt-4 border-t border-gray-200"
+      >
         <button
-          *ngIf="!selectedMessage.isSenderDoctor"
-          (click)="startReplyToPatient()"
-          class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-5 w-5 inline-block mr-2 -mt-1"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
-              clip-rule="evenodd"
-            />
-          </svg>
-          Reply to Patient
-        </button>
-      </div>
-
-      <div class="mt-6 pt-4 border-t border-gray-200">
-        <button
-          *ngIf="!selectedMessage.isSenderDoctor"
           (click)="startReplyToPatient()"
           class="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-50 flex items-center"
         >
@@ -191,100 +249,151 @@
         </button>
       </div>
     </div>
-  </div>
 
-  <!-- New/Reply Message Composition Form -->
-  <div *ngIf="isComposing || isReplying" class="mt-6">
-    <h2 class="text-xl font-semibold text-gray-700 mb-4">
-      {{ isReplying ? "Reply to Patient" : "Compose New Message to Patient" }}
-    </h2>
-    <form (ngSubmit)="sendMessage()" class="space-y-4">
-      <div>
-        <label
-          for="messageToPatient"
-          class="block text-sm font-medium text-gray-700"
-          >To:</label
-        >
-        <select
-          *ngIf="isComposing"
-          id="messageToPatient"
-          name="messageToPatient"
-          [(ngModel)]="newMessageToPatientId"
-          required
-          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
-        >
-          <option value="" disabled>Select a patient</option>
-          <option
-            *ngFor="let patient of availablePatients"
-            [value]="patient.id"
+    <!-- New/Reply Message Composition Form -->
+    <div *ngIf="isComposing || isReplying" class="mt-6">
+      <h2 class="text-xl font-semibold text-gray-700 mb-4">
+        {{ isReplying ? "Reply to Patient" : "Compose New Message to Patient" }}
+      </h2>
+      <form (ngSubmit)="sendMessage()" class="space-y-4">
+        <div>
+          <label
+            for="messageToPatient"
+            class="block text-sm font-medium text-gray-700"
+            >To Patient:</label
           >
-            {{ patient.name }}
-          </option>
-        </select>
-        <input
-          *ngIf="isReplying"
-          type="text"
-          id="messageToPatientName"
-          name="messageToPatientName"
-          [value]="replyingToPatientName"
-          readonly
-          class="mt-1 block w-full px-3 py-2 border border-gray-300 bg-gray-100 rounded-md shadow-sm sm:text-sm"
-        />
-      </div>
+          <select
+            *ngIf="isComposing"
+            id="messageToPatient"
+            name="messageToPatient"
+            [(ngModel)]="newMessageToPatientId"
+            required
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
+          >
+            <option value="" disabled>Select a patient</option>
+            <option
+              *ngFor="let patient of availablePatients"
+              [value]="patient.id"
+            >
+              {{ patient.name }}
+            </option>
+          </select>
+          <input
+            *ngIf="isReplying"
+            type="text"
+            id="messageToPatient"
+            name="messageToPatient"
+            [(ngModel)]="replyingToPatientName"
+            readonly
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 bg-gray-100 rounded-md shadow-sm sm:text-sm"
+          />
+        </div>
 
-      <div>
-        <label
-          for="messageSubject"
-          class="block text-sm font-medium text-gray-700"
-          >Subject:</label
-        >
-        <input
-          type="text"
-          id="messageSubject"
-          name="messageSubject"
-          [(ngModel)]="newMessageSubject"
-          required
-          [readonly]="isReplying"
-          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
-        />
-      </div>
+        <div>
+          <label
+            for="messageSubject"
+            class="block text-sm font-medium text-gray-700"
+            >Subject:</label
+          >
+          <input
+            type="text"
+            id="messageSubject"
+            name="messageSubject"
+            [(ngModel)]="newMessageSubject"
+            required
+            [readonly]="isReplying"
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
+            [class.bg-gray-100]="isReplying"
+          />
+        </div>
 
-      <div>
-        <label
-          for="messageContent"
-          class="block text-sm font-medium text-gray-700"
-          >Message:</label
-        >
-        <textarea
-          id="messageContent"
-          name="messageContent"
-          rows="6"
-          [(ngModel)]="currentMessageContent"
-          required
-          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
-        ></textarea>
-      </div>
+        <div>
+          <label
+            for="messageContent"
+            class="block text-sm font-medium text-gray-700"
+            >Message:</label
+          >
+          <textarea
+            id="messageContent"
+            name="messageContent"
+            rows="6"
+            [(ngModel)]="currentMessageContent"
+            (input)="onTyping()"
+            required
+            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
+          ></textarea>
+          <!-- Typing indicator -->
+          <div *ngIf="typingMessage" class="mt-1 text-sm text-gray-500 italic">
+            {{ typingMessage }}
+          </div>
+        </div>
 
-      <div class="flex justify-end space-x-3">
-        <button
-          type="button"
-          (click)="cancelComposition()"
-          class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          class="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded-md text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
-          [disabled]="
-            !newMessageToPatientId ||
-            !newMessageSubject ||
-            !currentMessageContent
-          "
-        >
-          Send
-        </button>
-      </div>
-    </form>
+        <div *ngIf="error" class="rounded-md bg-red-50 p-4 mb-4">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <svg
+                class="h-5 w-5 text-red-400"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm text-red-700">{{ error }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end space-x-3">
+          <button
+            type="button"
+            (click)="cancelComposition()"
+            class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded-md text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
+            [disabled]="
+              sendingMessage ||
+              !currentMessageContent ||
+              !newMessageSubject ||
+              (isComposing && !newMessageToPatientId)
+            "
+          >
+            <span *ngIf="!sendingMessage">Send</span>
+            <span *ngIf="sendingMessage" class="flex items-center">
+              <svg
+                class="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              Sending...
+            </span>
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>

@@ -1,0 +1,287 @@
+<div class="doctor-messages">
+  <h2>Messages</h2>
+
+  <!-- Error display -->
+  <div *ngIf="error" class="alert alert-danger">
+    {{ error }}
+  </div>
+
+  <!-- Tab navigation -->
+  <ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+      <a
+        class="nav-link"
+        [class.active]="activeTab === 'inbox'"
+        (click)="switchTab('inbox')"
+      >
+        <i class="bi bi-inbox"></i> Inbox
+      </a>
+    </li>
+    <li class="nav-item">
+      <a
+        class="nav-link"
+        [class.active]="activeTab === 'sent'"
+        (click)="switchTab('sent')"
+      >
+        <i class="bi bi-send"></i> Sent
+      </a>
+    </li>
+  </ul>
+
+  <!-- Loading indicator -->
+  <div *ngIf="loading" class="spinner-container">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+
+  <!-- Main message management UI -->
+  <div class="row">
+    <!-- Message list sidebar -->
+    <div class="col-md-4 message-list">
+      <div class="action-bar">
+        <button class="btn btn-primary" (click)="startNewMessage()">
+          <i class="bi bi-envelope-plus"></i> New Message
+        </button>
+        <button class="btn btn-outline-secondary" (click)="loadMessages()">
+          <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+      </div>
+
+      <!-- Message list -->
+      <div class="messages-container">
+        <div *ngIf="messages.length === 0 && !loading" class="empty-state">
+          <p>No messages in your {{ activeTab }}.</p>
+        </div>
+
+        <div
+          *ngFor="let message of messages"
+          class="message-item"
+          [class.unread]="!message.read"
+          [class.active]="selectedMessage?.id === message.id"
+          (click)="viewMessage(message)"
+        >
+          <div class="message-header">
+            <div class="sender-info">
+              <i
+                class="bi"
+                [ngClass]="
+                  message.sender === 'patient' ? 'bi-person' : 'bi-person-badge'
+                "
+              ></i>
+              <span class="sender-name">{{
+                activeTab === "inbox"
+                  ? message.senderName
+                  : message.receiverName
+              }}</span>
+            </div>
+            <span class="message-date">{{
+              message.timestamp | date : "short"
+            }}</span>
+          </div>
+          <div class="message-subject">{{ message.subject }}</div>
+          <div class="message-preview">
+            {{ message.content | slice : 0 : 50
+            }}{{ message.content.length > 50 ? "..." : "" }}
+          </div>
+
+          <div class="message-actions">
+            <button
+              class="btn btn-sm btn-link"
+              (click)="viewMessageThread(message); $event.stopPropagation()"
+            >
+              <i class="bi bi-chat-left-text"></i> View Thread
+            </button>
+            <button
+              class="btn btn-sm btn-danger"
+              (click)="archiveMessage(message.id); $event.stopPropagation()"
+            >
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Message viewing/composing area -->
+    <div class="col-md-8">
+      <!-- New message form -->
+      <div *ngIf="isComposing || isReplying" class="compose-form">
+        <h3>{{ isReplying ? "Reply" : "New Message" }}</h3>
+
+        <!-- Patient selection (for new messages) -->
+        <div class="mb-3" *ngIf="!isReplying">
+          <label for="recipient" class="form-label">To Patient:</label>
+          <select
+            class="form-select"
+            id="recipient"
+            [(ngModel)]="newMessagePatientId"
+          >
+            <option value="">Select a patient</option>
+            <option
+              *ngFor="let patient of getPatientArray()"
+              [value]="patient.id"
+            >
+              {{ patient.name }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Subject line -->
+        <div class="mb-3">
+          <label for="subject" class="form-label">Subject:</label>
+          <input
+            type="text"
+            class="form-control"
+            id="subject"
+            [(ngModel)]="newMessageSubject"
+          />
+        </div>
+
+        <!-- Message content -->
+        <div class="mb-3">
+          <label for="content" class="form-label">Message:</label>
+          <textarea
+            class="form-control"
+            id="content"
+            rows="6"
+            [(ngModel)]="newMessageContent"
+          ></textarea>
+        </div>
+
+        <!-- Form buttons -->
+        <div class="action-buttons">
+          <button class="btn btn-secondary me-2" (click)="cancelComposition()">
+            Cancel
+          </button>
+          <button
+            class="btn btn-primary"
+            (click)="sendMessage()"
+            [disabled]="sendingMessage"
+          >
+            <span
+              *ngIf="sendingMessage"
+              class="spinner-border spinner-border-sm me-1"
+              role="status"
+            ></span>
+            Send
+          </button>
+        </div>
+      </div>
+
+      <!-- Message thread view -->
+      <div
+        *ngIf="isViewingThread && messageThread.length > 0"
+        class="message-thread"
+      >
+        <div class="thread-header">
+          <h3>Message Thread</h3>
+          <button
+            class="btn btn-sm btn-outline-secondary"
+            (click)="closeView()"
+          >
+            <i class="bi bi-x-lg"></i> Close
+          </button>
+        </div>
+
+        <div class="thread-messages">
+          <div
+            *ngFor="let threadMessage of messageThread"
+            class="thread-message"
+            [class.outgoing]="threadMessage.isSenderDoctor"
+          >
+            <div class="message-info">
+              <strong>{{ threadMessage.senderName }}</strong>
+              <span class="message-date">{{
+                threadMessage.timestamp | date : "medium"
+              }}</span>
+            </div>
+            <div class="message-content">
+              <div class="message-subject">{{ threadMessage.subject }}</div>
+              <div class="message-body">{{ threadMessage.content }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="thread-actions">
+          <button
+            class="btn btn-primary"
+            (click)="startReply(messageThread[0])"
+          >
+            Reply
+          </button>
+        </div>
+      </div>
+
+      <!-- Selected message view -->
+      <div
+        *ngIf="
+          selectedMessage && !isComposing && !isReplying && !isViewingThread
+        "
+        class="selected-message"
+      >
+        <div class="message-header">
+          <div>
+            <h3>{{ selectedMessage.subject }}</h3>
+            <div class="message-info">
+              <span
+                ><strong>From:</strong> {{ selectedMessage.senderName }}</span
+              >
+              <span
+                ><strong>To:</strong> {{ selectedMessage.receiverName }}</span
+              >
+              <span
+                ><strong>Date:</strong>
+                {{ selectedMessage.timestamp | date : "medium" }}</span
+              >
+            </div>
+          </div>
+          <button
+            class="btn btn-sm btn-outline-secondary"
+            (click)="closeView()"
+          >
+            <i class="bi bi-x-lg"></i> Close
+          </button>
+        </div>
+
+        <div class="message-content">
+          {{ selectedMessage.content }}
+        </div>
+
+        <div class="message-actions">
+          <button class="btn btn-primary" (click)="startReply(selectedMessage)">
+            <i class="bi bi-reply"></i> Reply
+          </button>
+          <button
+            class="btn btn-outline-secondary"
+            (click)="viewMessageThread(selectedMessage)"
+          >
+            <i class="bi bi-chat-left-text"></i> View Thread
+          </button>
+          <button
+            class="btn btn-outline-danger"
+            (click)="archiveMessage(selectedMessage.id)"
+          >
+            <i class="bi bi-trash"></i> Archive
+          </button>
+        </div>
+      </div>
+
+      <!-- Empty state when nothing is selected -->
+      <div
+        *ngIf="
+          !selectedMessage && !isComposing && !isReplying && !isViewingThread
+        "
+        class="empty-message-view"
+      >
+        <div class="placeholder-content">
+          <i class="bi bi-envelope-open text-muted"></i>
+          <p>Select a message to view or compose a new message to a patient.</p>
+          <button class="btn btn-primary" (click)="startNewMessage()">
+            New Message
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

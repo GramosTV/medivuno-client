@@ -3,6 +3,36 @@
     Manage Your Availability
   </h1>
 
+  <!-- Real-time notification -->
+  <div
+    *ngIf="notification"
+    class="mb-6 p-4 rounded-md animate__animated animate__fadeIn animate__faster"
+    [ngClass]="{
+      'bg-green-100 border-l-4 border-green-400':
+        notification.type === 'created',
+      'bg-blue-100 border-l-4 border-blue-400': notification.type === 'updated',
+      'bg-red-100 border-l-4 border-red-400': notification.type === 'cancelled',
+      'bg-yellow-100 border-l-4 border-yellow-400':
+        notification.type === 'reminder'
+    }"
+  >
+    <div class="flex">
+      <div class="ml-3">
+        <p
+          class="text-sm"
+          [ngClass]="{
+            'text-green-700': notification.type === 'created',
+            'text-blue-700': notification.type === 'updated',
+            'text-red-700': notification.type === 'cancelled',
+            'text-yellow-700': notification.type === 'reminder'
+          }"
+        >
+          {{ notification.message }}
+        </p>
+      </div>
+    </div>
+  </div>
+
   <!-- Add/Edit Availability Form -->
   <form
     [formGroup]="availabilityForm"

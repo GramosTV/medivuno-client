@@ -9,8 +9,16 @@
       <h2 class="text-xl font-semibold text-blue-600 mb-3">
         Today's Appointments
       </h2>
-      <p class="text-gray-600 mb-4">
-        You have 5 appointments scheduled for today.
+      <div *ngIf="loading" class="flex justify-center mb-4">
+        <div
+          class="animate-spin h-5 w-5 border-2 border-blue-500 rounded-full border-t-transparent"
+        ></div>
+      </div>
+      <p class="text-gray-600 mb-4" *ngIf="!loading">
+        You have {{ todayAppointmentsCount }} appointment{{
+          todayAppointmentsCount !== 1 ? "s" : ""
+        }}
+        scheduled for today.
       </p>
       <a
         routerLink="/doctor/appointments"
@@ -33,7 +41,6 @@
         >Update Schedule &rarr;</a
       >
     </div>
-
     <!-- Patient List Card -->
     <div
       class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300"
@@ -47,6 +54,32 @@
         class="text-purple-500 hover:text-purple-700 font-medium"
         >View Patients &rarr;</a
       >
+    </div>
+
+    <!-- Appointment Notifications -->
+    <div
+      class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 md:col-span-2 lg:col-span-3"
+    >
+      <h2 class="text-xl font-semibold text-indigo-600 mb-3">
+        Recent Notifications
+      </h2>
+
+      <div
+        *ngIf="recentNotifications.length === 0"
+        class="text-gray-500 italic"
+      >
+        No recent notifications
+      </div>
+      <div
+        *ngFor="let notification of recentNotifications"
+        class="border-l-4 p-3 mb-3 rounded-r-md shadow-sm flex justify-between items-center"
+        [ngClass]="notification.colorClass"
+      >
+        <div class="text-sm">{{ notification.message }}</div>
+        <div class="text-xs text-gray-500 ml-2">
+          {{ notification.time | date : "shortTime" }}
+        </div>
+      </div>
     </div>
 
     <!-- Messages Card -->

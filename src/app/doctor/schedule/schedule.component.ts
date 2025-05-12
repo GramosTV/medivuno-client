@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   FormBuilder,
@@ -8,11 +8,13 @@ import {
 } from '@angular/forms';
 import { CalendarView } from 'angular-calendar';
 import { addDays, setDay, startOfWeek, setHours, setMinutes } from 'date-fns';
+import { Subscription } from 'rxjs';
 
 import {
   CalendarViewComponent,
   CustomCalendarEvent,
 } from '../../shared/calendar-view/calendar-view.component';
+import { AppointmentNotificationService } from '../../shared/services/appointment-notification.service';
 
 interface AvailabilitySlot {
   id: string; // Unique ID for the slot
@@ -28,7 +30,7 @@ interface AvailabilitySlot {
   templateUrl: './schedule.component.html',
   styleUrls: ['./schedule.component.scss'],
 })
-export class ScheduleComponent implements OnInit {
+export class ScheduleComponent implements OnInit, OnDestroy {
   availabilityForm: FormGroup;
   doctorSchedule: AvailabilitySlot[] = [];
   daysOfWeek = [
@@ -42,6 +44,8 @@ export class ScheduleComponent implements OnInit {
   ];
 
   timeOptions: string[] = [];
+  notification: { message: string; type: string } | null = null;
+  private subscriptions: Subscription[] = [];
 
   // Calendar properties
   view: CalendarView = CalendarView.Week;
@@ -49,7 +53,10 @@ export class ScheduleComponent implements OnInit {
   calendarEvents: CustomCalendarEvent[] = [];
   CalendarView = CalendarView;
 
-  constructor(private fb: FormBuilder) {
+  constructor(
+    private fb: FormBuilder,
+    private appointmentNotificationService: AppointmentNotificationService
+  ) {
     this.availabilityForm = this.fb.group(
       {
         dayOfWeek: ['', Validators.required],
@@ -89,6 +96,35 @@ export class ScheduleComponent implements OnInit {
       },
     ];
     this.loadCalendarEvents();
+
+    // Subscribe to real-time appointment notifications
+    const notificationSub =
+      this.appointmentNotificationService.appointmentNotifications$.subscribe(
+        (notification) => {
+          if (notification) {
+            // Show notification
+            this.notification = {
+              message:
+                this.appointmentNotificationService.getNotificationMessage(
+                  notification
+                ),
+              type: notification.type,
+            };
+
+            // Clear notification after a delay
+            setTimeout(() => {
+              this.notification = null;
+            }, 5000);
+          }
+        }
+      );
+
+    this.subscriptions.push(notificationSub);
+  }
+
+  ngOnDestroy(): void {
+    // Clean up subscriptions to prevent memory leaks
+    this.subscriptions.forEach((sub) => sub.unsubscribe());
   }
 
   generateTimeOptions() {
