@@ -23,11 +23,15 @@
           >Register</a
         >
       </ng-container>
-
       <!-- Logged In Links -->
       <ng-container *ngIf="isLoggedIn$ | async as isLoggedIn">
         <!-- Patient Links -->
-        <ng-container *ngIf="(currentUserRole$ | async) === 'patient'">
+        <ng-container
+          *ngIf="
+            (currentUserRole$ | async) === 'patient' ||
+            (currentUserRole$ | async) === 'user'
+          "
+        >
           <a
             routerLink="/patient/dashboard"
             routerLinkActive="font-semibold underline"
@@ -46,10 +50,28 @@
             class="hover:text-blue-200"
             >Book Appointment</a
           >
+          <a
+            routerLink="/patient/messages"
+            routerLinkActive="font-semibold underline"
+            class="hover:text-blue-200 relative"
+          >
+            Messages
+            <span
+              *ngIf="unreadMessageCount > 0"
+              class="absolute -top-2 -right-4 bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5"
+            >
+              {{ unreadMessageCount }}
+            </span>
+          </a>
         </ng-container>
 
         <!-- Doctor Links -->
-        <ng-container *ngIf="(currentUserRole$ | async) === 'doctor'">
+        <ng-container
+          *ngIf="
+            (currentUserRole$ | async) === 'doctor' ||
+            (currentUserRole$ | async) === 'admin'
+          "
+        >
           <a
             routerLink="/doctor/dashboard"
             routerLinkActive="font-semibold underline"
@@ -68,7 +90,147 @@
             class="hover:text-blue-200"
             >My Schedule</a
           >
+          <a
+            routerLink="/doctor/messages"
+            routerLinkActive="font-semibold underline"
+            class="hover:text-blue-200 relative"
+          >
+            Messages
+            <span
+              *ngIf="unreadMessageCount > 0"
+              class="absolute -top-2 -right-4 bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5"
+            >
+              {{ unreadMessageCount }}
+            </span>
+          </a>
         </ng-container>
+
+        <!-- Notifications Bell - shown for all logged in users -->
+        <div class="relative inline-block">
+          <button
+            (click)="toggleNotifications()"
+            class="hover:text-blue-200 relative mr-4 focus:outline-none"
+            aria-label="Notifications"
+          >
+            <!-- Bell Icon -->
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+              />
+            </svg>
+
+            <!-- Notification Badge -->
+            <span
+              *ngIf="unreadNotificationCount > 0"
+              class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5"
+            >
+              {{ unreadNotificationCount }}
+            </span>
+          </button>
+
+          <!-- Notification Dropdown -->
+          <div
+            *ngIf="showNotifications"
+            class="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg py-1 z-10 text-gray-800"
+          >
+            <div
+              class="py-2 px-4 border-b border-gray-200 flex justify-between items-center"
+            >
+              <h3 class="font-medium">Notifications</h3>
+              <button
+                *ngIf="unreadNotificationCount > 0"
+                (click)="markAllNotificationsAsRead()"
+                class="text-xs text-blue-600 hover:text-blue-800"
+              >
+                Mark all as read
+              </button>
+            </div>
+
+            <div class="max-h-64 overflow-y-auto">
+              <div
+                *ngIf="notifications.length === 0"
+                class="py-4 px-4 text-center text-gray-500"
+              >
+                No notifications
+              </div>
+
+              <a
+                *ngFor="let notification of notifications"
+                [routerLink]="notification.route"
+                (click)="markNotificationAsRead(notification.id)"
+                class="block px-4 py-2 hover:bg-gray-100 border-b border-gray-100 last:border-0"
+                [class.bg-blue-50]="!notification.read"
+              >
+                <div class="flex items-start">
+                  <!-- Notification Type Icon -->
+                  <div
+                    [ngClass]="getNotificationIconClass(notification.type)"
+                    class="mr-3 mt-1 rounded-full p-1.5"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        *ngIf="notification.type === 'message'"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                      />
+                      <path
+                        *ngIf="notification.type === 'appointment'"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                      <path
+                        *ngIf="notification.type === 'reminder'"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                      <path
+                        *ngIf="notification.type === 'system'"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+
+                  <!-- Notification Content -->
+                  <div class="flex-1 overflow-hidden">
+                    <p class="font-medium text-sm truncate">
+                      {{ notification.title }}
+                    </p>
+                    <p class="text-xs text-gray-600 truncate">
+                      {{ notification.content }}
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">
+                      {{ notification.createdAt | date : "short" }}
+                    </p>
+                  </div>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
 
         <button
           (click)="logout()"
