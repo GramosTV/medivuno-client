@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { Observable, Subject } from 'rxjs';
+import { map, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
 // Define interfaces to match the backend models
@@ -58,6 +58,15 @@ export interface UpdateAppointmentStatusDto {
 export class AppointmentService {
   private apiUrl = `${environment.apiUrl}/appointments`;
 
+  // Subject for local event emissions
+  private appointmentUpdateSource = new Subject<{
+    action: 'created' | 'updated' | 'cancelled' | 'reminder';
+    appointment: Appointment;
+  }>();
+
+  // Observable for components to subscribe to local events
+  appointmentUpdate$ = this.appointmentUpdateSource.asObservable();
+
   constructor(private http: HttpClient) {}
 
   // Get appointments for the current patient
@@ -69,25 +78,41 @@ export class AppointmentService {
   getDoctorAppointments(): Observable<Appointment[]> {
     return this.http.get<Appointment[]>(`${this.apiUrl}/doctor`);
   }
-
   // Create a new appointment
   createAppointment(
     appointment: CreateAppointmentDto
   ): Observable<Appointment> {
-    return this.http.post<Appointment>(this.apiUrl, appointment);
+    return this.http.post<Appointment>(this.apiUrl, appointment).pipe(
+      tap((newAppointment) => {
+        // Emit local event for real-time updates
+        this.appointmentUpdateSource.next({
+          action: 'created',
+          appointment: newAppointment,
+        });
+      })
+    );
   }
 
   // Get a specific appointment by ID
   getAppointmentById(id: string): Observable<Appointment> {
     return this.http.get<Appointment>(`${this.apiUrl}/${id}`);
   }
-
   // Update an appointment
   updateAppointment(
     id: string,
     appointment: Partial<CreateAppointmentDto>
   ): Observable<Appointment> {
-    return this.http.patch<Appointment>(`${this.apiUrl}/${id}`, appointment);
+    return this.http
+      .patch<Appointment>(`${this.apiUrl}/${id}`, appointment)
+      .pipe(
+        tap((updatedAppointment) => {
+          // Emit local event for real-time updates
+          this.appointmentUpdateSource.next({
+            action: 'updated',
+            appointment: updatedAppointment,
+          });
+        })
+      );
   }
 
   // Update appointment status
@@ -95,9 +120,21 @@ export class AppointmentService {
     id: string,
     status: AppointmentStatus
   ): Observable<Appointment> {
-    return this.http.patch<Appointment>(`${this.apiUrl}/${id}/status`, {
-      status,
-    });
+    return this.http
+      .patch<Appointment>(`${this.apiUrl}/${id}/status`, {
+        status,
+      })
+      .pipe(
+        tap((updatedAppointment) => {
+          // Emit different event types based on status
+          const action =
+            status === AppointmentStatus.CANCELLED ? 'cancelled' : 'updated';
+          this.appointmentUpdateSource.next({
+            action,
+            appointment: updatedAppointment,
+          });
+        })
+      );
   }
 
   // Cancel an appointment
