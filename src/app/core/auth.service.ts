@@ -11,7 +11,7 @@ import { jwtDecode } from 'jwt-decode'; // Import jwt-decode
 export interface UserProfile {
   id: string;
   email: string;
-  role: 'admin' | 'user'; // Updated to match backend Role enum
+  role: 'admin' | 'user' | 'doctor' | 'patient'; // Updated to match expanded Role enum
   firstName: string; // Added to match UserEntity
   lastName: string; // Added to match UserEntity
 }
@@ -59,13 +59,28 @@ export class AuthService {
     // Defer the call to loadInitialAuthState or ensure HttpClient is accessed lazily
     Promise.resolve().then(() => this.loadInitialAuthState());
   }
-
   // Lazy load HttpClient
   private get http(): HttpClient {
     if (!this._httpClient) {
       this._httpClient = this.injector.get(HttpClient);
     }
     return this._httpClient;
+  }
+
+  // Get user profile from JWT token
+  getProfileFromToken(): { id: string; email: string; role: string } | null {
+    const token = this.getAccessToken();
+    if (token) {
+      const decodedToken = this.decodeToken(token);
+      if (decodedToken) {
+        return {
+          id: decodedToken.sub,
+          email: decodedToken.email,
+          role: decodedToken.role,
+        };
+      }
+    }
+    return null;
   }
 
   private loadInitialAuthState(): void {
@@ -141,10 +156,10 @@ export class AuthService {
           );
           this.zone.run(() => {
             // Run navigation inside NgZone
-            if (profile.role === 'user') {
+            if (profile.role === 'user' || profile.role === 'patient') {
               console.log('[AuthService] Navigating to /patient/dashboard');
               this.router.navigate(['/patient/dashboard']);
-            } else if (profile.role === 'admin') {
+            } else if (profile.role === 'admin' || profile.role === 'doctor') {
               console.log('[AuthService] Navigating to /doctor/dashboard');
               this.router.navigate(['/doctor/dashboard']);
             } else {
@@ -207,8 +222,13 @@ export class AuthService {
   }
 
   private clearAuthDataAndNavigate(): void {
+    // Clear auth data
     this.clearAuthData();
-    this.router.navigate(['/auth/login']);
+
+    // Navigate to login page outside Angular zone to prevent ExpressionChangedAfterItHasBeenCheckedError
+    this.zone.run(() => {
+      this.router.navigate(['/auth/login']);
+    });
   }
 
   public getAccessToken(): string | null {
@@ -225,6 +245,30 @@ export class AuthService {
 
   getCurrentUserRole(): string | null {
     return this.userRole.value;
+  }
+
+  // Get current user profile (safe accessor method)
+  getCurrentUserProfile(): UserProfile | null {
+    // Return a cached copy of the user profile if available
+    const userProfileJSON = sessionStorage.getItem('healthcare_user_profile');
+    if (userProfileJSON) {
+      try {
+        return JSON.parse(userProfileJSON);
+      } catch (e) {
+        console.error('Failed to parse user profile from session storage:', e);
+      }
+    }
+    return null;
+  }
+
+  // Method to update the current user profile in session storage
+  private updateUserProfileCache(profile: UserProfile): void {
+    if (profile) {
+      sessionStorage.setItem(
+        'healthcare_user_profile',
+        JSON.stringify(profile)
+      );
+    }
   }
 
   private handleError(error: HttpErrorResponse) {
@@ -281,7 +325,11 @@ export class AuthService {
           email: backendUser.email,
           firstName: backendUser.firstName,
           lastName: backendUser.lastName,
-          role: (backendUser.role as string).toLowerCase() as 'admin' | 'user',
+          role: (backendUser.role as string).toLowerCase() as
+            | 'admin'
+            | 'user'
+            | 'doctor'
+            | 'patient',
         };
         return userProfile;
       }),
