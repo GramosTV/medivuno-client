@@ -64,7 +64,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.subscriptions.forEach((sub) => sub.unsubscribe());
   }
-
   loadAppointments(): void {
     this.loading = true;
     this.appointmentService.getPatientAppointments().subscribe({
@@ -72,20 +71,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
         // Filter for upcoming appointments
         this.upcomingAppointments = appointments
           .filter(
-            (app) =>
-              app.status !== AppointmentStatus.CANCELLED &&
-              app.status !== AppointmentStatus.COMPLETED &&
-              new Date(app.appointmentDateTime) >= new Date()
+            (app: Appointment) =>
+              app.status !== 'cancelled' &&
+              app.status !== 'completed' &&
+              new Date(app.startTime) >= new Date()
           )
           .sort(
-            (a, b) =>
-              new Date(a.appointmentDateTime).getTime() -
-              new Date(b.appointmentDateTime).getTime()
+            (a: Appointment, b: Appointment) =>
+              new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
           )
           .slice(0, 5); // Show only the next 5 appointments
         this.loading = false;
       },
-      error: (err) => {
+      error: (err: any) => {
         console.error('Error loading appointments:', err);
         this.loading = false;
       },

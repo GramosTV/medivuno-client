@@ -26,28 +26,28 @@
               <div class="flex justify-between">
                 <div>
                   <p class="font-medium">
-                    Dr. {{ appointment.doctor.firstName }}
-                    {{ appointment.doctor.lastName }}
+                    Dr. {{ appointment.doctor?.firstName || "Unknown" }}
+                    {{ appointment.doctor?.lastName || "Doctor" }}
                   </p>
                   <p class="text-sm text-gray-500">
-                    {{
-                      appointment.appointmentDateTime
-                        | date : "MMM d, y, h:mm a"
-                    }}
+                    {{ appointment.startTime | date : "MMM d, y, h:mm a" }}
                   </p>
                 </div>
                 <div class="text-xs font-semibold">
                   <span
                     [ngClass]="{
                       'bg-yellow-100 text-yellow-800':
-                        appointment.status === 'PENDING',
+                        appointment.status === 'pending',
                       'bg-green-100 text-green-800':
-                        appointment.status === 'CONFIRMED',
+                        appointment.status === 'confirmed',
                       'bg-red-100 text-red-800':
-                        appointment.status === 'CANCELLED'
+                        appointment.status === 'cancelled'
                     }"
                     class="px-2 py-1 rounded-full"
-                    >{{ appointment.status }}</span
+                    >{{
+                      appointment.status.charAt(0).toUpperCase() +
+                        appointment.status.slice(1)
+                    }}</span
                   >
                 </div>
               </div>
