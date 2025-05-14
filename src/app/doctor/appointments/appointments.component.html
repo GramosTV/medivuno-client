@@ -90,18 +90,18 @@
       <div class="md:flex md:justify-between items-start mb-4">
         <div>
           <h3 class="text-xl font-semibold text-blue-700 mb-1">
-            {{ appt.patient.firstName }} {{ appt.patient.lastName }}
+            {{ appt.patient?.firstName }} {{ appt.patient?.lastName }}
           </h3>
           <p class="text-gray-700">
             <span class="font-medium">Date:</span>
-            {{ appt.appointmentDateTime | date : "fullDate" }}
+            {{ appt.startTime | date : "fullDate" }}
           </p>
           <p class="text-gray-700">
             <span class="font-medium">Time:</span>
-            {{ appt.appointmentDateTime | date : "shortTime" }}
+            {{ appt.startTime | date : "shortTime" }}
           </p>
-          <p *ngIf="appt.reasonForVisit" class="text-sm text-gray-600 mt-1">
-            <span class="font-medium">Reason:</span> {{ appt.reasonForVisit }}
+          <p *ngIf="appt.reason" class="text-sm text-gray-600 mt-1">
+            <span class="font-medium">Reason:</span> {{ appt.reason }}
           </p>
           <p *ngIf="appt.durationMinutes" class="text-sm text-gray-600">
             <span class="font-medium">Duration:</span>
@@ -112,20 +112,19 @@
           <span
             class="px-3 py-1 text-xs font-semibold rounded-full inline-block"
             [ngClass]="{
-              'bg-green-100 text-green-800': appt.status === 'CONFIRMED',
-              'bg-gray-200 text-gray-800': appt.status === 'COMPLETED',
-              'bg-red-100 text-red-800': appt.status === 'CANCELLED',
-              'bg-yellow-100 text-yellow-800': appt.status === 'PENDING'
+              'bg-green-100 text-green-800': appt.status === 'confirmed',
+              'bg-gray-200 text-gray-800': appt.status === 'completed',
+              'bg-red-100 text-red-800': appt.status === 'cancelled',
+              'bg-yellow-100 text-yellow-800': appt.status === 'pending'
             }"
           >
-            {{ appt.status.charAt(0) + appt.status.slice(1).toLowerCase() }}
+            {{ appt.status.charAt(0).toUpperCase() + appt.status.slice(1) }}
           </span>
         </div>
       </div>
-
       <div
         class="mt-4 pt-4 border-t border-gray-200 flex flex-wrap gap-2 justify-end"
-        *ngIf="appt.status === 'CONFIRMED' || appt.status === 'PENDING'"
+        *ngIf="appt.status === 'confirmed' || appt.status === 'pending'"
       >
         <button
           (click)="markAsCompleted(appt.id)"
@@ -134,7 +133,7 @@
           Mark as Completed
         </button>
         <button
-          *ngIf="appt.status === 'PENDING'"
+          *ngIf="appt.status === 'pending'"
           (click)="confirmAppointment(appt.id)"
           class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md text-sm transition duration-150"
         >
@@ -149,10 +148,10 @@
       </div>
       <div
         class="mt-4 pt-4 border-t border-gray-200 text-right"
-        *ngIf="appt.status === 'COMPLETED' || appt.status === 'CANCELLED'"
+        *ngIf="appt.status === 'completed' || appt.status === 'cancelled'"
       >
         <p class="text-sm text-gray-500">
-          This appointment is {{ appt.status.toLowerCase() }}.
+          This appointment is {{ appt.status }}.
         </p>
       </div>
     </div>

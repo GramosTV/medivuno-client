@@ -12,7 +12,9 @@ import {
   AppointmentService,
   Appointment,
   AppointmentStatus,
+  UpdateAppointmentStatusDto,
 } from '../../shared/services/appointment.service';
+import { AppointmentStatus as AppointmentStatusType } from '../../shared/interfaces/models';
 import { AppointmentNotificationService } from '../../shared/services/appointment-notification.service';
 import { finalize } from 'rxjs/operators';
 
@@ -94,7 +96,7 @@ export class AppointmentsComponent implements OnInit, OnDestroy {
                 this.scheduledAppointments = this.scheduledAppointments.map(
                   (appt) =>
                     appt.id === notification.appointment.id
-                      ? { ...appt, status: AppointmentStatus.CANCELLED }
+                      ? { ...appt, status: 'cancelled' }
                       : appt
                 );
                 this.loadCalendarEvents();
@@ -136,15 +138,17 @@ export class AppointmentsComponent implements OnInit, OnDestroy {
     this.calendarEvents = this.scheduledAppointments
       .map((appt) => {
         try {
-          // Use the appointmentDateTime directly from the API
-          const startDate = new Date(appt.appointmentDateTime);
+          // Use the startTime from the Go backend API
+          const startDate = new Date(appt.startTime);
 
           if (isNaN(startDate.getTime())) {
             console.warn(
-              `Invalid date/time for appointment ID ${appt.id}: ${appt.appointmentDateTime}`
+              `Invalid date/time for appointment ID ${appt.id}: ${appt.startTime}`
             );
             return {
-              title: `INVALID TIME - ${appt.patient.firstName} ${appt.patient.lastName} (${appt.status})`,
+              title: `INVALID TIME - ${appt.patient?.firstName || 'Unknown'} ${
+                appt.patient?.lastName || 'Patient'
+              } (${appt.status})`,
               start: new Date(),
               end: new Date(),
               color: { primary: '#FF0000', secondary: '#FFCCCC' },
@@ -156,19 +160,18 @@ export class AppointmentsComponent implements OnInit, OnDestroy {
           const endDate = addHours(
             startDate,
             (appt.durationMinutes || 60) / 60
-          );
-
-          // Map status to colors
+          ); // Map status to colors
           let eventColor = { primary: '#1e90ff', secondary: '#D1E8FF' };
-          if (appt.status === AppointmentStatus.COMPLETED) {
+          if (appt.status === 'completed') {
             eventColor = { primary: '#28a745', secondary: '#C8E6C9' };
-          } else if (appt.status === AppointmentStatus.CANCELLED) {
+          } else if (appt.status === 'cancelled') {
             eventColor = { primary: '#dc3545', secondary: '#F8D7DA' };
           }
-
-          const patientName = `${appt.patient.firstName} ${appt.patient.lastName}`;
+          const patientName = `${appt.patient?.firstName || 'Unknown'} ${
+            appt.patient?.lastName || 'Patient'
+          }`;
           const formattedStatus =
-            appt.status.charAt(0) + appt.status.slice(1).toLowerCase();
+            appt.status.charAt(0).toUpperCase() + appt.status.slice(1);
 
           return {
             title: `${patientName} - ${
@@ -242,12 +245,14 @@ export class AppointmentsComponent implements OnInit, OnDestroy {
     console.log('Event action:', action, 'Event:', event);
     const originalAppt = event.meta.originalAppointment as Appointment;
     if (originalAppt) {
-      const patientName = `${originalAppt.patient.firstName} ${originalAppt.patient.lastName}`;
+      const patientName = `${originalAppt.patient?.firstName || 'Unknown'} ${
+        originalAppt.patient?.lastName || 'Patient'
+      }`;
       const appointmentDate = new Date(
-        originalAppt.appointmentDateTime
+        originalAppt.startTime
       ).toLocaleDateString();
       const appointmentTime = new Date(
-        originalAppt.appointmentDateTime
+        originalAppt.startTime
       ).toLocaleTimeString();
       const status = originalAppt.status;
 
@@ -256,30 +261,30 @@ export class AppointmentsComponent implements OnInit, OnDestroy {
       );
     }
   }
-
   confirmAppointment(appointmentId: string): void {
     console.log('Confirming appointment:', appointmentId);
-    this.updateAppointmentStatus(appointmentId, AppointmentStatus.CONFIRMED);
+    this.updateAppointmentStatus(appointmentId, 'confirmed');
   }
 
   cancelAppointment(appointmentId: string): void {
     console.log('Cancelling appointment by doctor:', appointmentId);
-    this.updateAppointmentStatus(appointmentId, AppointmentStatus.CANCELLED);
+    this.updateAppointmentStatus(appointmentId, 'cancelled');
   }
 
   markAsCompleted(appointmentId: string): void {
     console.log('Marking appointment as completed:', appointmentId);
-    this.updateAppointmentStatus(appointmentId, AppointmentStatus.COMPLETED);
+    this.updateAppointmentStatus(appointmentId, 'completed');
   }
-
-  private updateAppointmentStatus(
-    appointmentId: string,
-    status: AppointmentStatus
-  ): void {
+  private updateAppointmentStatus(appointmentId: string, status: string): void {
     this.loading = true;
 
+    // Create the DTO with the status string already in lowercase
+    const statusUpdateDto: UpdateAppointmentStatusDto = {
+      status: status as AppointmentStatusType,
+    };
+
     this.appointmentService
-      .updateAppointmentStatus(appointmentId, status)
+      .updateAppointmentStatus(appointmentId, statusUpdateDto)
       .pipe(finalize(() => (this.loading = false)))
       .subscribe({
         next: (updatedAppointment) => {
