@@ -6,13 +6,13 @@ import {
   MessageService,
   CreateMessageDto,
 } from '../../shared/services/message.service';
-import { finalize, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import {
   AppointmentService,
   Doctor,
 } from '../../shared/services/appointment.service';
-import { WebSocketService } from '../../shared/services/websocket.service';
-import { Subject, Subscription } from 'rxjs';
+import { finalize } from 'rxjs/operators';
+import { MessagePollingService } from '../../shared/services/message-polling.service';
+import { Subscription } from 'rxjs';
 
 interface DoctorRecipient {
   id: string;
@@ -48,39 +48,27 @@ export class MessagesComponent implements OnInit, OnDestroy {
   // Available doctors from backend
   availableDoctors: DoctorRecipient[] = [];
 
-  // Typing indicators
-  typingUsers: { userId: string }[] = [];
-  private typingSubject = new Subject<string>();
+  // Subscription management
   private subscriptions: Subscription[] = [];
-  isTyping = false;
-  typingMessage = '';
 
   constructor(
     private messageService: MessageService,
     private appointmentService: AppointmentService,
-    private webSocketService: WebSocketService
-  ) {
-    // Setup typing debounce
-    const typingSubscription = this.typingSubject
-      .pipe(debounceTime(300), distinctUntilChanged())
-      .subscribe((recipientId) => {
-        if (recipientId && this.isTyping) {
-          this.webSocketService.sendTypingStart(recipientId).subscribe();
-        }
-      });
-
-    this.subscriptions.push(typingSubscription);
-  }
+    private messagePollingService: MessagePollingService
+  ) {}
 
   ngOnInit(): void {
     this.loadMessages();
     this.loadDoctors();
 
-    // Subscribe to real-time new messages
-    const newMessageSub = this.messageService.newMessage$.subscribe(
+    // Start polling for new messages
+    this.messagePollingService.startPolling(5000); // Poll every 5 seconds
+
+    // Subscribe to new messages from polling
+    const newMessageSub = this.messagePollingService.newMessage$.subscribe(
       (message) => {
         if (message) {
-          // Add the new message to the list if it's not already there
+          // Add the new message to our list if it's not already there
           const exists = this.messages.some((m) => m.id === message.id);
           if (!exists) {
             this.messages = [message, ...this.messages];
@@ -91,13 +79,16 @@ export class MessagesComponent implements OnInit, OnDestroy {
     this.subscriptions.push(newMessageSub);
 
     // Subscribe to message read events
-    const readMessageSub = this.messageService.messageRead$.subscribe(
+    const readMessageSub = this.messagePollingService.messageRead$.subscribe(
       (messageId) => {
         if (messageId) {
-          // Update message read status in the list
+          // Update message in our list
           const index = this.messages.findIndex((m) => m.id === messageId);
           if (index !== -1) {
-            this.messages[index] = { ...this.messages[index], read: true };
+            this.messages[index] = {
+              ...this.messages[index],
+              read: true,
+            };
           }
 
           // Also update selected message if it's the one that was read
@@ -108,64 +99,11 @@ export class MessagesComponent implements OnInit, OnDestroy {
       }
     );
     this.subscriptions.push(readMessageSub);
-
-    // Subscribe to typing indicators
-    const typingIndicatorSub = this.webSocketService.typingUsers$.subscribe(
-      (typingInfo) => {
-        if (typingInfo) {
-          // Add to typing users if not already there
-          if (!this.typingUsers.some((u) => u.userId === typingInfo.userId)) {
-            this.typingUsers.push(typingInfo);
-
-            // Update typing message
-            this.updateTypingMessage();
-          }
-
-          // Auto remove after 3 seconds if no further typing events
-          setTimeout(() => {
-            this.typingUsers = this.typingUsers.filter(
-              (u) => u.userId !== typingInfo.userId
-            );
-            this.updateTypingMessage();
-          }, 3000);
-        }
-      }
-    );
-    this.subscriptions.push(typingIndicatorSub);
   }
 
   ngOnDestroy(): void {
     // Clean up all subscriptions
     this.subscriptions.forEach((sub) => sub.unsubscribe());
-  }
-
-  // Updates message in UI showing who is typing
-  updateTypingMessage(): void {
-    if (this.typingUsers.length === 0) {
-      this.typingMessage = '';
-    } else if (this.typingUsers.length === 1) {
-      this.typingMessage = 'Someone is typing...';
-    } else {
-      this.typingMessage = 'Multiple people are typing...';
-    }
-  }
-
-  // Track user typing to send events
-  onTyping(): void {
-    if (this.selectedDoctorId && !this.isTyping) {
-      this.isTyping = true;
-      this.typingSubject.next(this.selectedDoctorId);
-
-      // Stop typing after 1.5 seconds of inactivity
-      setTimeout(() => {
-        this.isTyping = false;
-        if (this.selectedDoctorId) {
-          this.webSocketService
-            .sendTypingEnd(this.selectedDoctorId)
-            .subscribe();
-        }
-      }, 1500);
-    }
   }
 
   loadMessages(): void {
@@ -304,7 +242,6 @@ export class MessagesComponent implements OnInit, OnDestroy {
         'Unable to determine message recipient. Please select a doctor.';
       return;
     }
-
     const messageData: CreateMessageDto = {
       subject: this.newMessageSubject,
       content: this.currentMessageContent,
