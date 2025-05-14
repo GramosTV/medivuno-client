@@ -1,0 +1,315 @@
+<div class="container mx-auto p-4 md:p-6 bg-gray-50 min-h-screen">
+  <header class="mb-8">
+    <div class="flex justify-between items-center">
+      <div class="flex items-center">
+        <a
+          routerLink="/doctor/patients"
+          class="mr-3 text-blue-600 hover:text-blue-800"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"
+            />
+          </svg>
+        </a>
+        <h1 class="text-3xl font-bold text-gray-800">
+          {{ patientName }}'s Medical Records
+        </h1>
+      </div>
+      <button
+        (click)="createNewRecord()"
+        class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-colors flex items-center"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-5 w-5 mr-1"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+            clip-rule="evenodd"
+          />
+        </svg>
+        New Record
+      </button>
+    </div>
+  </header>
+
+  <!-- Loading and Error states -->
+  <div *ngIf="isLoading" class="flex justify-center items-center p-8">
+    <div
+      class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"
+    ></div>
+  </div>
+
+  <div
+    *ngIf="error"
+    class="bg-red-50 border border-red-200 text-red-800 p-4 rounded-md mb-6"
+  >
+    <div class="flex items-center">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-5 w-5 mr-2 text-red-600"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+      >
+        <path
+          fill-rule="evenodd"
+          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+          clip-rule="evenodd"
+        />
+      </svg>
+      <span>{{ error }}</span>
+    </div>
+    <button
+      (click)="loadMedicalRecords()"
+      class="mt-2 text-white bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm"
+    >
+      Retry
+    </button>
+  </div>
+
+  <div
+    *ngIf="!isLoading && !error"
+    class="grid grid-cols-1 md:grid-cols-3 gap-6"
+  >
+    <!-- Records List -->
+    <div class="md:col-span-1 bg-white p-6 rounded-lg shadow-lg h-fit">
+      <h2 class="text-xl font-semibold text-gray-700 mb-4">
+        All Records ({{ medicalRecords.length }})
+      </h2>
+      <div
+        *ngIf="medicalRecords.length > 0; else noRecords"
+        class="space-y-3 max-h-[70vh] overflow-y-auto"
+      >
+        <div
+          *ngFor="let record of medicalRecords"
+          (click)="viewRecordDetails(record)"
+          class="p-4 rounded-md border border-gray-200 hover:bg-blue-50 hover:shadow-md transition-all cursor-pointer"
+          [class.bg-blue-100]="selectedRecord?.id === record.id"
+          [class.border-blue-300]="selectedRecord?.id === record.id"
+        >
+          <div class="flex items-center mb-1">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              class="w-5 h-5 text-blue-600 mr-2"
+            >
+              <path
+                fill-rule="evenodd"
+                [attr.d]="getRecordTypeIcon(record.recordType)"
+                clip-rule="evenodd"
+              />
+            </svg>
+            <h3
+              class="text-md font-semibold text-gray-800 truncate"
+              title="{{ record.title }}"
+            >
+              {{ record.title }}
+            </h3>
+          </div>
+          <p class="text-xs text-gray-500">
+            {{ record.recordType }} - {{ record.date | date : "mediumDate" }}
+          </p>
+          <p class="text-xs text-gray-600 mt-1 truncate">
+            {{ record.doctorName }}
+          </p>
+        </div>
+      </div>
+      <ng-template #noRecords>
+        <div
+          class="p-4 border border-gray-100 rounded-md bg-gray-50 text-center"
+        >
+          <p class="text-gray-500">No medical records found</p>
+        </div>
+      </ng-template>
+    </div>
+
+    <!-- Record Details -->
+    <div class="md:col-span-2">
+      <div
+        *ngIf="selectedRecord; else selectRecordPrompt"
+        class="bg-white p-6 rounded-lg shadow-lg"
+      >
+        <div class="flex justify-between items-start mb-4">
+          <h2 class="text-2xl font-bold text-gray-800">
+            {{ selectedRecord.title }}
+          </h2>
+          <div class="flex">
+            <button
+              (click)="deleteRecord(selectedRecord.id)"
+              class="p-1 text-red-600 hover:text-red-800 focus:outline-none ml-2"
+              title="Delete Record"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </button>
+            <button
+              (click)="closeRecordDetails()"
+              class="p-1 text-gray-500 hover:text-gray-700 focus:outline-none ml-2"
+              title="Close Details"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <p class="text-sm text-gray-500">Record Type</p>
+            <p class="text-gray-800">{{ selectedRecord.recordType }}</p>
+          </div>
+          <div>
+            <p class="text-sm text-gray-500">Date</p>
+            <p class="text-gray-800">
+              {{ selectedRecord.date | date : "mediumDate" }}
+            </p>
+          </div>
+          <div>
+            <p class="text-sm text-gray-500">Doctor</p>
+            <p class="text-gray-800">{{ selectedRecord.doctorName }}</p>
+          </div>
+          <div *ngIf="selectedRecord.department">
+            <p class="text-sm text-gray-500">Department</p>
+            <p class="text-gray-800">{{ selectedRecord.department }}</p>
+          </div>
+        </div>
+
+        <div class="mb-6" *ngIf="selectedRecord.summary">
+          <h3 class="text-lg font-semibold text-gray-700 mb-2">Summary</h3>
+          <p class="text-gray-800 bg-gray-50 p-3 rounded-md">
+            {{ selectedRecord.summary }}
+          </p>
+        </div>
+
+        <div class="mb-6" *ngIf="selectedRecord.details">
+          <h3 class="text-lg font-semibold text-gray-700 mb-2">Details</h3>
+          <p
+            class="text-gray-800 whitespace-pre-line bg-gray-50 p-3 rounded-md"
+          >
+            {{ selectedRecord.details }}
+          </p>
+        </div>
+
+        <div
+          *ngIf="
+            selectedRecord.attachments && selectedRecord.attachments.length > 0
+          "
+        >
+          <h3 class="text-lg font-semibold text-gray-700 mb-2">
+            Attachments ({{ selectedRecord.attachments.length }})
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <a
+              *ngFor="let attachment of selectedRecord.attachments"
+              [href]="attachment.url"
+              target="_blank"
+              class="flex items-center p-3 border border-gray-200 rounded-md hover:bg-gray-50 hover:border-blue-300 transition-colors"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5 text-gray-500 mr-2"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+              <div class="flex flex-col truncate">
+                <span class="text-sm text-gray-800 font-medium truncate">
+                  {{ attachment.fileName }}
+                </span>
+                <span class="text-xs text-gray-500">{{
+                  attachment.fileType
+                }}</span>
+              </div>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <ng-template #selectRecordPrompt>
+        <div
+          class="bg-white p-6 rounded-lg shadow-lg h-full flex flex-col justify-center items-center text-center"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-16 w-16 text-gray-300 mb-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+          </svg>
+          <h3 class="text-xl font-semibold text-gray-600 mb-2">
+            No Record Selected
+          </h3>
+          <p class="text-gray-500">
+            Select a medical record from the list to view details
+          </p>
+          <p *ngIf="medicalRecords.length === 0" class="mt-4">
+            <button
+              (click)="createNewRecord()"
+              class="inline-flex items-center text-blue-600 hover:text-blue-800"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5 mr-1"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+              Create the first record
+            </button>
+          </p>
+        </div>
+      </ng-template>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,271 @@
+<div class="container mx-auto p-4 md:p-6 bg-gray-50 min-h-screen">
+  <header class="mb-8">
+    <div class="flex items-center">
+      <button
+        routerLink="/doctor/patients/{{ patientId }}/records"
+        class="mr-3 text-blue-600 hover:text-blue-800"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-6 w-6"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M10 19l-7-7m0 0l7-7m-7 7h18"
+          />
+        </svg>
+      </button>
+      <h1 class="text-3xl font-bold text-gray-800">
+        Create New Medical Record
+      </h1>
+    </div>
+  </header>
+
+  <!-- Error Display -->
+  <div
+    *ngIf="error"
+    class="mb-6 bg-red-50 border border-red-300 text-red-800 p-4 rounded-md"
+  >
+    {{ error }}
+  </div>
+
+  <!-- Form -->
+  <form
+    [formGroup]="recordForm"
+    (ngSubmit)="onSubmit()"
+    class="bg-white p-6 rounded-lg shadow-lg"
+  >
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Record Type -->
+      <div class="form-group">
+        <label for="recordType" class="block text-gray-700 font-medium mb-2"
+          >Record Type *</label
+        >
+        <select
+          id="recordType"
+          formControlName="recordType"
+          class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          [class.border-red-500]="
+            recordForm.get('recordType')?.invalid &&
+            recordForm.get('recordType')?.touched
+          "
+        >
+          <option *ngFor="let type of recordTypes" [value]="type.value">
+            {{ type.label }}
+          </option>
+        </select>
+        <div
+          *ngIf="
+            recordForm.get('recordType')?.invalid &&
+            recordForm.get('recordType')?.touched
+          "
+          class="text-red-500 mt-1 text-sm"
+        >
+          Record type is required
+        </div>
+      </div>
+
+      <!-- Record Date -->
+      <div class="form-group">
+        <label for="recordDate" class="block text-gray-700 font-medium mb-2"
+          >Record Date *</label
+        >
+        <input
+          type="date"
+          id="recordDate"
+          formControlName="recordDate"
+          class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          [class.border-red-500]="
+            recordForm.get('recordDate')?.invalid &&
+            recordForm.get('recordDate')?.touched
+          "
+        />
+        <div
+          *ngIf="
+            recordForm.get('recordDate')?.invalid &&
+            recordForm.get('recordDate')?.touched
+          "
+          class="text-red-500 mt-1 text-sm"
+        >
+          Record date is required
+        </div>
+      </div>
+
+      <!-- Title -->
+      <div class="form-group md:col-span-2">
+        <label for="title" class="block text-gray-700 font-medium mb-2"
+          >Title *</label
+        >
+        <input
+          type="text"
+          id="title"
+          formControlName="title"
+          class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          [class.border-red-500]="
+            recordForm.get('title')?.invalid && recordForm.get('title')?.touched
+          "
+          placeholder="e.g., Annual Check-up, Blood Test Results, etc."
+        />
+        <div
+          *ngIf="
+            recordForm.get('title')?.invalid && recordForm.get('title')?.touched
+          "
+          class="text-red-500 mt-1 text-sm"
+        >
+          Title is required
+        </div>
+      </div>
+
+      <!-- Department -->
+      <div class="form-group md:col-span-2">
+        <label for="department" class="block text-gray-700 font-medium mb-2"
+          >Department</label
+        >
+        <input
+          type="text"
+          id="department"
+          formControlName="department"
+          class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="e.g., General Medicine, Cardiology, etc."
+        />
+      </div>
+
+      <!-- Summary -->
+      <div class="form-group md:col-span-2">
+        <label for="summary" class="block text-gray-700 font-medium mb-2"
+          >Summary</label
+        >
+        <textarea
+          id="summary"
+          formControlName="summary"
+          rows="3"
+          class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Brief overview or key findings"
+        ></textarea>
+      </div>
+
+      <!-- Details -->
+      <div class="form-group md:col-span-2">
+        <label for="details" class="block text-gray-700 font-medium mb-2"
+          >Details</label
+        >
+        <textarea
+          id="details"
+          formControlName="details"
+          rows="5"
+          class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Comprehensive information, notes, or results"
+        ></textarea>
+      </div>
+
+      <!-- Attachments -->
+      <div class="form-group md:col-span-2">
+        <label class="block text-gray-700 font-medium mb-2">Attachments</label>
+        <div class="border-dashed border-2 border-gray-300 p-4 rounded-md">
+          <input
+            type="file"
+            id="file"
+            multiple
+            (change)="onFileSelected($event)"
+            class="hidden"
+          />
+          <label
+            for="file"
+            class="cursor-pointer flex flex-col items-center justify-center py-4"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-10 w-10 text-blue-500 mb-2"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+              />
+            </svg>
+            <span class="text-blue-500 font-medium">Click to upload files</span>
+            <span class="text-gray-500 text-sm mt-1"
+              >PDF, images, or other documents</span
+            >
+          </label>
+        </div>
+
+        <!-- Selected Files List -->
+        <div *ngIf="selectedFiles.length > 0" class="mt-4">
+          <h3 class="font-medium text-gray-700 mb-2">Selected Files:</h3>
+          <ul class="space-y-2">
+            <li
+              *ngFor="let file of selectedFiles; let i = index"
+              class="flex items-center justify-between bg-gray-50 p-2 rounded-md"
+            >
+              <div class="flex items-center overflow-hidden">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5 text-gray-500 mr-2"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+                <span class="truncate max-w-xs">{{ file.name }}</span>
+                <span class="ml-2 text-xs text-gray-500"
+                  >({{ (file.size / 1024).toFixed(1) }} KB)</span
+                >
+              </div>
+              <button
+                type="button"
+                (click)="removeSelectedFile(i)"
+                class="text-red-500 hover:text-red-700 focus:outline-none"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </button>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit Button -->
+    <div class="mt-8 flex justify-end">
+      <button
+        type="button"
+        routerLink="/doctor/patients/{{ patientId }}/records"
+        class="px-6 py-2 mr-4 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300 transition-colors"
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        [disabled]="recordForm.invalid || isSubmitting"
+        class="px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <span *ngIf="!isSubmitting">Create Record</span>
+        <span *ngIf="isSubmitting">Creating...</span>
+      </button>
+    </div>
+  </form>
+</div>

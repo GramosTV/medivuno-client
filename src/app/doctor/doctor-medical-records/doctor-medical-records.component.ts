@@ -1,41 +1,42 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
-import { RouterModule } from '@angular/router';
+import { RouterModule, ActivatedRoute, Router } from '@angular/router';
+import { MedicalRecordService } from '../../shared/services/medical-record.service';
 import {
   MedicalRecord,
   MedicalRecordType,
 } from '../../shared/interfaces/medical-record.interface';
-import { MedicalRecordService } from '../../shared/services/medical-record.service';
-import { AuthService } from '../../core/auth.service';
 import { finalize, catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
 
 @Component({
-  selector: 'app-medical-records',
+  selector: 'app-doctor-medical-records',
   standalone: true,
   imports: [CommonModule, HttpClientModule, RouterModule],
-  templateUrl: './medical-records.component.html',
-  styleUrl: './medical-records.component.scss',
+  templateUrl: './doctor-medical-records.component.html',
+  styleUrls: ['./doctor-medical-records.component.scss'],
 })
-export class MedicalRecordsComponent implements OnInit {
+export class DoctorMedicalRecordsComponent implements OnInit {
   medicalRecords: MedicalRecord[] = [];
   selectedRecord: MedicalRecord | null = null;
-  currentPatientId: string = '';
+  patientId: string = '';
+  patientName: string = '';
   isLoading: boolean = false;
   error: string | null = null;
 
   constructor(
     private medicalRecordService: MedicalRecordService,
-    private authService: AuthService
+    private route: ActivatedRoute,
+    private router: Router
   ) {}
+
   ngOnInit(): void {
-    // Get the current user's ID
-    this.authService.currentUser.subscribe((user: any) => {
-      if (user) {
-        this.currentPatientId = user.id;
-        this.loadMedicalRecords();
-      }
+    this.route.params.subscribe((params) => {
+      this.patientId = params['patientId'];
+      // In a real app, you would fetch the patient details to get their name
+      this.patientName = 'Patient';
+      this.loadMedicalRecords();
     });
   }
 
@@ -47,12 +48,11 @@ export class MedicalRecordsComponent implements OnInit {
     this.error = null;
 
     this.medicalRecordService
-      .getPatientRecords(this.currentPatientId)
+      .getPatientRecords(this.patientId)
       .pipe(
         catchError((err) => {
           this.error =
-            'Failed to load medical records. Please try again later. ' +
-            (err.status === 404 ? 'API endpoint not found.' : '');
+            'Failed to load medical records. Please try again later.';
           console.error('Error loading medical records:', err);
           return of([]);
         }),
@@ -79,6 +79,38 @@ export class MedicalRecordsComponent implements OnInit {
 
   closeRecordDetails(): void {
     this.selectedRecord = null;
+  }
+
+  createNewRecord(): void {
+    this.router.navigate(['create'], { relativeTo: this.route });
+  }
+
+  deleteRecord(id: string): void {
+    if (
+      !confirm(
+        'Are you sure you want to delete this record? This action cannot be undone.'
+      )
+    ) {
+      return;
+    }
+
+    this.isLoading = true;
+    this.medicalRecordService
+      .deleteMedicalRecord(id)
+      .pipe(
+        catchError((err) => {
+          this.error = 'Failed to delete record. Please try again later.';
+          console.error('Error deleting record:', err);
+          return of(null);
+        }),
+        finalize(() => {
+          this.isLoading = false;
+        })
+      )
+      .subscribe(() => {
+        this.loadMedicalRecords();
+        this.selectedRecord = null;
+      });
   }
 
   getRecordTypeIcon(recordType: MedicalRecordType): string {
