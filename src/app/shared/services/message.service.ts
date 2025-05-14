@@ -1,26 +1,40 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject, Subject, of, throwError } from 'rxjs';
+import { Observable, BehaviorSubject, Subject, throwError } from 'rxjs';
 import { map, tap, catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
-import { WebSocketService } from './websocket.service';
 import { NotificationService } from './notification.service';
 import { AuthService } from '../../core/auth.service';
-import { Message as ClientMessage } from '../interfaces/message.interface';
 
-export interface CreateMessageDto {
-  subject: string;
-  content: string;
-  recipientId: string;
-  parentMessageId?: string;
+// Import the shared models
+import {
+  Message as GoMessage,
+  MessageStatus as GoMessageStatus,
+  User,
+} from '../interfaces/models';
+
+// Response wrapper from Go backend
+interface ApiResponse<T> {
+  message: string;
+  data: T;
 }
 
+export interface CreateMessageDto {
+  content: string;
+  recipientId: string; // Changed to match backend expectation
+  // Optional fields that could be used for threading or subject
+  parentMessageId?: string;
+  subject?: string;
+}
+
+// Keep the existing enum for backward compatibility
 export enum MessageStatus {
   UNREAD = 'UNREAD',
   READ = 'READ',
   ARCHIVED = 'ARCHIVED',
 }
 
+// The interface our frontend components expect
 export interface Message {
   id: string;
   sender: 'doctor' | 'patient';
@@ -35,89 +49,238 @@ export interface Message {
   isSenderDoctor: boolean;
 }
 
-export interface ServerMessage {
-  id: string;
-  subject: string;
-  content: string;
-  sender: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    role: string;
-  };
-  recipient: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    role: string;
-  };
-  status: MessageStatus;
-  parentMessageId?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 @Injectable({
   providedIn: 'root',
 })
 export class MessageService {
-  private apiUrl = `${environment.apiUrl}/messages`;
+  // Updated to use the Go backend API structure
+  private apiUrl = `${environment.apiUrl}/api/v1/messages`;
 
   // BehaviorSubjects for tracking message state
   private messagesSubject = new BehaviorSubject<Message[]>([]);
   private newMessageSubject = new Subject<Message>();
   private messageReadSubject = new Subject<string>();
-  private typingUsersSubject = new BehaviorSubject<{ [key: string]: boolean }>(
-    {}
-  );
 
   // Public observables
   public messages$ = this.messagesSubject.asObservable();
   public newMessage$ = this.newMessageSubject.asObservable();
   public messageRead$ = this.messageReadSubject.asObservable();
-  public typingUsers$ = this.typingUsersSubject.asObservable();
-
-  // Debounce variables for typing indicators
-  private typingTimeout: { [key: string]: any } = {};
-  private typingDelay = 2000; // 2 seconds
 
   constructor(
     private http: HttpClient,
-    private webSocketService: WebSocketService,
     private notificationService: NotificationService,
     private authService: AuthService
   ) {
-    // Listen for new messages from WebSocket
-    this.webSocketService.newMessages$.subscribe((wsMessage) => {
-      if (wsMessage) {
-        // Convert from external message format to our internal format if needed
-        if (!this.isInternalMessageFormat(wsMessage)) {
-          const convertedMessage = this.convertToInternalMessage(wsMessage);
-          this.handleNewMessage(convertedMessage);
-        } else {
-          this.handleNewMessage(wsMessage as Message);
-        }
-      }
-    });
-
-    // Listen for message read updates from WebSocket
-    this.webSocketService.messageRead$.subscribe((update) => {
-      if (update) {
-        this.handleMessageReadUpdate(update.id);
-      }
-    });
-
-    // Listen for typing indicators
-    this.webSocketService.typingUsers$.subscribe((typing) => {
-      if (typing) {
-        this.handleTypingIndicator(typing.userId);
-      }
-    });
+    // Initialize service
+    console.log('Message service initialized with Go backend at', this.apiUrl);
   }
 
-  // Handle new messages from WebSocket
+  // Get all messages for the current user
+  getMessages(): Observable<Message[]> {
+    console.log('Fetching messages from API:', this.apiUrl);
+    return this.http.get<ApiResponse<GoMessage[]>>(this.apiUrl).pipe(
+      tap((response) => console.log('Raw API response:', response)),
+      map((response) => response.data || []),
+      tap((messages) => console.log('Extracted messages data:', messages)),
+      map((messages) => this.mapGoMessagesToClientMessages(messages)),
+      tap((mappedMessages) => {
+        console.log('Mapped client messages:', mappedMessages);
+        // Update the local message cache
+        this.messagesSubject.next(mappedMessages);
+      }),
+      catchError((error) => {
+        console.error('Error fetching messages:', error);
+        return throwError(
+          () => new Error('Failed to load messages from server')
+        );
+      })
+    );
+  } // Get inbox messages - messages received by the current user
+  getInbox(): Observable<Message[]> {
+    console.log('MessageService: getInbox() called');
+    return this.getMessages().pipe(
+      tap((messages) =>
+        console.log('MessageService: Raw messages before filtering:', messages)
+      ),
+      map((messages) => {
+        const currentUser = this.authService.getCurrentUserProfile();
+        console.log('MessageService: Current user profile:', currentUser);
+
+        const isDoctor =
+          currentUser?.role === 'doctor' || currentUser?.role === 'admin';
+        console.log('MessageService: isDoctor =', isDoctor); // Fix for inbox logic:
+        // - For doctors: Show messages where they are the receiver AND patient is sender
+        // - For patients: Show messages where they are the receiver AND doctor is sender
+        const filteredMessages = messages.filter((m) => {
+          let keep;
+
+          if (isDoctor) {
+            // For doctors: Show messages FROM patients TO this doctor
+            keep = !m.isSenderDoctor && m.doctorId === currentUser?.id;
+            console.log(
+              `MessageService: Message ${m.id} - isSenderDoctor = ${m.isSenderDoctor}, doctorId = ${m.doctorId}, senderId = ${m.sender}, currentUserId = ${currentUser?.id}, keep = ${keep}`
+            );
+          } else {
+            // For patients: Show messages FROM doctors TO this patient
+            // We need to check sender is 'doctor' because isSenderDoctor might be incorrect
+            keep =
+              (m.isSenderDoctor || m.sender === 'doctor') &&
+              m.patientId === currentUser?.id;
+            console.log(
+              `MessageService: Message ${m.id} - isSenderDoctor = ${m.isSenderDoctor}, sender = ${m.sender}, patientId = ${m.patientId}, currentUserId = ${currentUser?.id}, keep = ${keep}`
+            );
+          }
+
+          return keep;
+        });
+
+        console.log(
+          'MessageService: Filtered inbox messages:',
+          filteredMessages
+        );
+        return filteredMessages;
+      })
+    );
+  }
+  // Get sent messages - messages sent by the current user
+  getSent(): Observable<Message[]> {
+    console.log('MessageService: getSent() called');
+    return this.getMessages().pipe(
+      tap((messages) =>
+        console.log(
+          'MessageService: Raw messages before sent filtering:',
+          messages
+        )
+      ),
+      map((messages) => {
+        const currentUser = this.authService.getCurrentUserProfile();
+        console.log(
+          'MessageService: Current user profile for sent messages:',
+          currentUser
+        );
+
+        const isCurrentUserDoctor =
+          currentUser?.role === 'doctor' || currentUser?.role === 'admin';
+        console.log(
+          'MessageService: isCurrentUserDoctor =',
+          isCurrentUserDoctor
+        );
+
+        // Improved filter for sent messages:
+        // - If user is doctor, show messages where doctor is sender (this doctor specifically)
+        // - If user is patient, show messages where patient is sender (this patient specifically)
+        const filteredMessages = messages.filter((m) => {
+          let keep;
+
+          if (isCurrentUserDoctor) {
+            // For doctors: Check that they are messages FROM this doctor (sender)
+            keep = m.isSenderDoctor && m.doctorId === currentUser?.id;
+            console.log(
+              `MessageService: Sent message ${m.id} - isSenderDoctor = ${m.isSenderDoctor}, doctorId = ${m.doctorId}, currentUserId = ${currentUser?.id}, keep = ${keep}`
+            );
+          } else {
+            // For patients: Check that they are messages FROM this patient (sender)
+            keep = !m.isSenderDoctor && m.patientId === currentUser?.id;
+            console.log(
+              `MessageService: Sent message ${m.id} - isSenderDoctor = ${m.isSenderDoctor}, patientId = ${m.patientId}, currentUserId = ${currentUser?.id}, keep = ${keep}`
+            );
+          }
+
+          return keep;
+        });
+
+        console.log(
+          'MessageService: Filtered sent messages:',
+          filteredMessages
+        );
+        return filteredMessages;
+      })
+    );
+  }
+
+  getMessageThread(messageId: string): Observable<Message[]> {
+    return this.http
+      .get<ApiResponse<GoMessage[]>>(`${this.apiUrl}/thread/${messageId}`)
+      .pipe(
+        map((response) => response.data),
+        map((messages) => this.mapGoMessagesToClientMessages(messages))
+      );
+  }
+
+  // Get a conversation between current user and another user
+  getConversation(userId: string): Observable<Message[]> {
+    return this.http
+      .get<ApiResponse<GoMessage[]>>(`${this.apiUrl}/conversation/${userId}`)
+      .pipe(
+        map((response) => response.data),
+        map((messages) => this.mapGoMessagesToClientMessages(messages)),
+        tap((messages) => {
+          // Update the local message cache for this conversation
+          const currentMessages = this.messagesSubject.getValue();
+          const otherMessages = currentMessages.filter(
+            (m) => m.doctorId !== userId && m.patientId !== userId
+          );
+          this.messagesSubject.next([...otherMessages, ...messages]);
+        })
+      );
+  }
+
+  // Send a message
+  sendMessage(messageData: any): Observable<Message> {
+    // Adapt the messageData to handle both formats (backward compatibility)
+    const goMessageData: CreateMessageDto = {
+      content: messageData.content,
+      recipientId: messageData.recipientId || messageData.receiverId, // Use recipientId as the backend expects
+      subject: messageData.subject || 'No Subject',
+      parentMessageId: messageData.parentMessageId,
+    };
+
+    console.log('Sending message with data:', goMessageData);
+
+    return this.http
+      .post<ApiResponse<GoMessage>>(`${this.apiUrl}/send`, goMessageData)
+      .pipe(
+        map((response) => response.data),
+        map((message) => this.mapGoMessageToClientMessage(message)),
+        tap((message) => {
+          // Handle the new message
+          this.handleNewMessage(message);
+        }),
+        catchError((error) => {
+          console.error('Error in sendMessage:', error);
+          // Add detailed error logging
+          if (error.status === 403) {
+            console.error(
+              'Authorization error: User does not have permission to send this message'
+            );
+          }
+          throw error;
+        })
+      );
+  }
+
+  // Mark a message as read
+  markAsRead(id: string): Observable<Message> {
+    return this.http
+      .patch<ApiResponse<GoMessage>>(`${this.apiUrl}/${id}/read`, {})
+      .pipe(
+        map((response) => response.data),
+        map((message) => this.mapGoMessageToClientMessage(message)),
+        tap((message) => {
+          // Update the message read status
+          this.handleMessageReadUpdate(id);
+        })
+      );
+  }
+
+  // Archive a message
+  archiveMessage(id: string): Observable<void> {
+    return this.http
+      .delete<ApiResponse<void>>(`${this.apiUrl}/${id}`)
+      .pipe(map(() => undefined));
+  }
+
+  // Handle new message notification
   private handleNewMessage(message: Message): void {
     // Add to messages array if not already there
     const currentMessages = this.messagesSubject.getValue();
@@ -150,7 +313,7 @@ export class MessageService {
     }
   }
 
-  // Handle message read updates from WebSocket
+  // Handle message read updates
   private handleMessageReadUpdate(messageId: string): void {
     // Update message in array
     const currentMessages = this.messagesSubject.getValue();
@@ -162,193 +325,94 @@ export class MessageService {
     // Emit message read event
     this.messageReadSubject.next(messageId);
   }
+  // Helper method to map Go message format to client message format
+  private mapGoMessageToClientMessage(message: GoMessage): Message {
+    const currentUser = this.authService.getCurrentUserProfile();
 
-  // Handle typing indicator from WebSocket
-  private handleTypingIndicator(userId: string): void {
-    // Set user as typing
-    const currentTypingUsers = this.typingUsersSubject.getValue();
-    this.typingUsersSubject.next({
-      ...currentTypingUsers,
-      [userId]: true,
-    });
-
-    // Clear typing status after delay
-    if (this.typingTimeout[userId]) {
-      clearTimeout(this.typingTimeout[userId]);
-    }
-
-    this.typingTimeout[userId] = setTimeout(() => {
-      const currentTypingUsers = this.typingUsersSubject.getValue();
-      const updatedTypingUsers = { ...currentTypingUsers };
-      delete updatedTypingUsers[userId];
-      this.typingUsersSubject.next(updatedTypingUsers);
-    }, this.typingDelay);
-  }
-
-  // Get all messages for the current user (inbox + sent)
-  getAllMessages(): Observable<Message[]> {
-    return this.http
-      .get<ServerMessage[]>(this.apiUrl)
-      .pipe(
-        map((messages) => this.mapServerMessagesToClientMessages(messages))
-      );
-  }
-
-  // Get inbox messages (where user is recipient)
-  getInbox(): Observable<Message[]> {
-    return this.http
-      .get<ServerMessage[]>(`${this.apiUrl}/inbox`)
-      .pipe(
-        map((messages) => this.mapServerMessagesToClientMessages(messages))
-      );
-  }
-
-  // Get sent messages (where user is sender)
-  getSent(): Observable<Message[]> {
-    return this.http
-      .get<ServerMessage[]>(`${this.apiUrl}/sent`)
-      .pipe(
-        map((messages) => this.mapServerMessagesToClientMessages(messages))
-      );
-  }
-
-  // Get a specific message by ID
-  getMessage(id: string): Observable<Message> {
-    return this.http
-      .get<ServerMessage>(`${this.apiUrl}/${id}`)
-      .pipe(map((message) => this.mapServerMessageToClientMessage(message)));
-  }
-
-  // Get thread of messages
-  getMessageThread(id: string): Observable<Message[]> {
-    return this.http
-      .get<ServerMessage[]>(`${this.apiUrl}/${id}/thread`)
-      .pipe(
-        map((messages) => this.mapServerMessagesToClientMessages(messages))
-      );
-  }
-
-  // Send a new message
-  sendMessage(messageData: CreateMessageDto): Observable<Message> {
-    // Check if WebSocket is connected for real-time messaging
-    if (this.webSocketService.connected$) {
-      return this.webSocketService
-        .sendMessage(messageData)
-        .pipe(
-          map((serverMessage: ServerMessage) =>
-            this.mapServerMessageToClientMessage(serverMessage)
-          )
-        );
-    } else {
-      // Fall back to HTTP if WebSocket is not available
-      return this.http
-        .post<ServerMessage>(this.apiUrl, messageData)
-        .pipe(map((message) => this.mapServerMessageToClientMessage(message)));
-    }
-  }
-
-  // Mark a message as read
-  markAsRead(id: string): Observable<Message> {
-    // Check if WebSocket is connected for real-time messaging
-    if (this.webSocketService.connected$) {
-      return this.webSocketService
-        .markMessageAsRead(id)
-        .pipe(
-          map((serverMessage: ServerMessage) =>
-            this.mapServerMessageToClientMessage(serverMessage)
-          )
-        );
-    } else {
-      // Fall back to HTTP if WebSocket is not available
-      return this.http
-        .patch<ServerMessage>(`${this.apiUrl}/${id}`, {
-          status: MessageStatus.READ,
-        })
-        .pipe(map((message) => this.mapServerMessageToClientMessage(message)));
-    }
-  }
-
-  // Archive a message
-  archiveMessage(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${id}`);
-  }
-
-  // Helper method to map server message format to client message format
-  private mapServerMessageToClientMessage(message: ServerMessage): Message {
+    // Debug full message structure
+    console.log(
+      'MessageService: mapGoMessageToClientMessage - Raw Message:',
+      JSON.stringify(message, null, 2)
+    );
+    console.log('MessageService: Current User:', currentUser); // Determine if the sender is a doctor based on their role
+    // Need to handle uppercase roles from backend
+    const senderRoleLower = message.sender?.role?.toLowerCase();
     const isSenderDoctor =
-      message.sender.role === 'admin' || message.sender.role === 'doctor';
+      senderRoleLower === 'admin' || senderRoleLower === 'doctor';
 
-    return {
+    console.log(
+      'MessageService: isSenderDoctor =',
+      isSenderDoctor,
+      'sender role =',
+      message.sender?.role,
+      'normalized to lowercase =',
+      senderRoleLower
+    );
+
+    // Determine if current user is the sender
+    const isSentByCurrentUser = message.senderId === currentUser?.id;
+    console.log('MessageService: isSentByCurrentUser =', isSentByCurrentUser);
+
+    let patientId, doctorId; // Set doctorId and patientId based on sender's role - handle uppercase role values
+    const senderRole = message.sender?.role?.toLowerCase();
+    if (senderRole === 'doctor' || senderRole === 'admin') {
+      doctorId = message.senderId;
+      patientId = message.receiverId;
+    } else {
+      patientId = message.senderId;
+      doctorId = message.receiverId;
+    }
+
+    console.log(
+      `MessageService: Set doctorId=${doctorId}, patientId=${patientId}`
+    ); // Setting correct values based on the actual role
+    const mappedMessage: Message = {
       id: message.id,
-      sender: isSenderDoctor ? 'doctor' : 'patient',
-      senderName: `${message.sender.firstName} ${message.sender.lastName}`,
-      receiverName: `${message.recipient.firstName} ${message.recipient.lastName}`,
-      patientId: !isSenderDoctor ? message.sender.id : message.recipient.id,
-      doctorId: isSenderDoctor ? message.sender.id : message.recipient.id,
-      subject: message.subject,
+      // Ensure proper value for 'sender' based on uppercased role from backend
+      sender:
+        message.sender?.role?.toLowerCase() === 'doctor' ||
+        message.sender?.role?.toLowerCase() === 'admin'
+          ? 'doctor'
+          : 'patient',
+      senderName: message.sender
+        ? `${message.sender.firstName} ${message.sender.lastName}`
+        : 'Unknown',
+      receiverName: message.receiver
+        ? `${message.receiver.firstName} ${message.receiver.lastName}`
+        : 'Unknown',
+      patientId: patientId,
+      doctorId: doctorId,
+      subject: message.subject || 'No Subject', // Use the subject from backend
       content: message.content,
       timestamp: new Date(message.createdAt),
-      read: message.status !== MessageStatus.UNREAD,
-      isSenderDoctor,
+      read: message.status === 'read',
+      // Critical fix: set isSenderDoctor based on the actual role from backend
+      isSenderDoctor: senderRole === 'doctor' || senderRole === 'admin',
     };
+
+    console.log('MessageService: Mapped message:', mappedMessage);
+
+    console.log('MessageService: Mapped message:', mappedMessage);
+    return mappedMessage;
   }
 
-  private mapServerMessagesToClientMessages(
-    messages: ServerMessage[]
-  ): Message[] {
-    return messages.map((message) =>
-      this.mapServerMessageToClientMessage(message)
-    );
+  // Map multiple Go messages to client message format
+  public mapGoMessagesToClientMessages(messages: GoMessage[]): Message[] {
+    return messages.map((message) => this.mapGoMessageToClientMessage(message));
   }
 
-  // Helper method to check if a message is already in our internal format
-  private isInternalMessageFormat(message: any): boolean {
-    return (
-      message &&
-      typeof message === 'object' &&
-      'id' in message &&
-      'sender' in message &&
-      'senderName' in message &&
-      'receiverName' in message &&
-      'subject' in message &&
-      'content' in message &&
-      'timestamp' in message &&
-      'read' in message
-    );
-  }
-
-  // Convert from WebSocket message format to internal message format
-  private convertToInternalMessage(wsMessage: any): Message {
-    // If it looks like a ServerMessage, use our existing converter
-    if (
-      wsMessage &&
-      wsMessage.sender &&
-      wsMessage.recipient &&
-      wsMessage.subject &&
-      wsMessage.content
-    ) {
-      return this.mapServerMessageToClientMessage(wsMessage as ServerMessage);
-    }
-
-    // Handle other formats that might come from WebSocket
-    // This is a fallback and should be improved based on actual data format
-    const isSenderDoctor =
-      wsMessage.senderRole === 'admin' || wsMessage.senderRole === 'doctor';
-
-    return {
-      id: wsMessage.id || `temp-${Date.now()}`,
-      sender: isSenderDoctor ? 'doctor' : 'patient',
-      senderName: wsMessage.senderName || 'Unknown Sender',
-      receiverName: wsMessage.receiverName || 'Unknown Recipient',
-      patientId: isSenderDoctor ? wsMessage.recipientId : wsMessage.senderId,
-      doctorId: isSenderDoctor ? wsMessage.senderId : wsMessage.recipientId,
-      subject: wsMessage.subject || 'No Subject',
-      content: wsMessage.content || '',
-      timestamp: wsMessage.createdAt
-        ? new Date(wsMessage.createdAt)
-        : new Date(),
-      read: wsMessage.status !== 'UNREAD',
-      isSenderDoctor,
-    };
+  // Get new messages since a specific date
+  getNewMessagesSince(sinceDate: Date): Observable<Message[]> {
+    const timestamp = sinceDate.toISOString();
+    return this.http
+      .get<ApiResponse<GoMessage[]>>(`${this.apiUrl}/new?since=${timestamp}`)
+      .pipe(
+        map((response) => response.data),
+        map((messages) => this.mapGoMessagesToClientMessages(messages)),
+        catchError((err) => {
+          console.error('Error fetching new messages:', err);
+          return throwError(() => new Error('Failed to fetch new messages'));
+        })
+      );
   }
 }
