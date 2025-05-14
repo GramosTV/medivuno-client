@@ -2,12 +2,11 @@
   <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 sm:mb-8">
     Doctor Messages
   </h1>
-
   <!-- New Message Button -->
   <div class="mb-6 text-right">
     <button
       (click)="startNewMessageToPatient()"
-      class="bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-50"
+      class="bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-50"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -318,14 +317,9 @@
             name="messageContent"
             rows="6"
             [(ngModel)]="currentMessageContent"
-            (input)="onTyping()"
             required
             class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
           ></textarea>
-          <!-- Typing indicator -->
-          <div *ngIf="typingMessage" class="mt-1 text-sm text-gray-500 italic">
-            {{ typingMessage }}
-          </div>
         </div>
 
         <div *ngIf="error" class="rounded-md bg-red-50 p-4 mb-4">
