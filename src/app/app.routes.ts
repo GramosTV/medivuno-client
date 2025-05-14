@@ -12,7 +12,7 @@ export const routes: Routes = [
     loadChildren: () =>
       import('./patient/patient.module').then((m) => m.PatientModule),
     canActivate: [authGuard],
-    data: { roles: ['patient', 'user'] },
+    data: { roles: ['patient'] }, // We've normalized 'user' to 'patient' in auth service
   },
   {
     path: 'doctor',
