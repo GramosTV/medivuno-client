@@ -225,12 +225,15 @@ export class BookAppointmentComponent implements OnInit {
       // Create a date object with both date and time
       const appointmentDate = new Date(
         `${dateStr}T${hours.toString().padStart(2, '0')}:${minutes}:00`
-      );
+      ); // Create end time (1 hour after start by default)
+      const endTime = new Date(appointmentDate);
+      endTime.setHours(endTime.getHours() + 1);
 
       const appointmentData = {
         doctorId: formValue.doctor,
-        appointmentDateTime: appointmentDate.toISOString(),
-        reasonForVisit: formValue.reason || 'Regular checkup',
+        startTime: appointmentDate.toISOString(),
+        endTime: endTime.toISOString(),
+        reason: formValue.reason || 'Regular checkup',
       };
 
       this.loading = true;
