@@ -75,28 +75,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-
-        // Count today's appointments
+        tomorrow.setDate(tomorrow.getDate() + 1); // Count today's appointments
         this.todayAppointmentsCount = appointments.filter((apt) => {
-          const aptDate = new Date(apt.appointmentDateTime);
+          const aptDate = new Date(apt.startTime);
           return (
-            aptDate >= today &&
-            aptDate < tomorrow &&
-            apt.status !== AppointmentStatus.CANCELLED
+            aptDate >= today && aptDate < tomorrow && apt.status !== 'cancelled'
           );
         }).length;
 
         // Count pending appointments
         this.pendingAppointmentsCount = appointments.filter(
-          (apt) => apt.status === AppointmentStatus.PENDING
+          (apt) => apt.status === 'pending'
         ).length;
 
         // Count all active appointments
         this.totalAppointmentsCount = appointments.filter(
-          (apt) =>
-            apt.status !== AppointmentStatus.CANCELLED &&
-            apt.status !== AppointmentStatus.COMPLETED
+          (apt) => apt.status !== 'cancelled' && apt.status !== 'completed'
         ).length;
 
         this.loading = false;
