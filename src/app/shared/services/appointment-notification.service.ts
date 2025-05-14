@@ -1,9 +1,11 @@
-import { Injectable } from '@angular/core';
-import { WebSocketService } from './websocket.service';
-import { BehaviorSubject } from 'rxjs';
+import { Injectable, OnDestroy } from '@angular/core';
+import { BehaviorSubject, Observable, interval, Subscription, of } from 'rxjs';
+import { switchMap, takeUntil, filter, catchError, tap } from 'rxjs/operators';
 import { NotificationService } from './notification.service';
-import { Appointment } from './appointment.service';
+import { Appointment, AppointmentService } from './appointment.service';
 import { AuthService } from '../../core/auth.service';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
 
 interface AppointmentNotification {
   appointmentId: string;
@@ -11,10 +13,16 @@ interface AppointmentNotification {
   appointment: Appointment;
 }
 
+// API response structure
+interface ApiResponse<T> {
+  message: string;
+  data: T;
+}
+
 @Injectable({
   providedIn: 'root',
 })
-export class AppointmentNotificationService {
+export class AppointmentNotificationService implements OnDestroy {
   private appointmentNotificationsSubject =
     new BehaviorSubject<AppointmentNotification | null>(null);
 
@@ -22,122 +30,100 @@ export class AppointmentNotificationService {
   public appointmentNotifications$ =
     this.appointmentNotificationsSubject.asObservable();
 
+  // For tracking the last poll time
+  private lastPollTime: Date = new Date();
+  private pollingSubscription: Subscription | null = null;
+  private destroy$ = new BehaviorSubject<boolean>(false);
+
   constructor(
-    private webSocketService: WebSocketService,
+    private http: HttpClient,
     private notificationService: NotificationService,
-    private authService: AuthService
+    private authService: AuthService,
+    private appointmentService: AppointmentService
   ) {
-    // Setup WebSocket event listeners for appointment notifications
-    this.setupWebSocketListeners();
-
-    // Join appointment notification room when connected
-    this.webSocketService.connected$.subscribe((connected) => {
-      if (connected) {
-        this.joinAppointmentRoom();
-      }
-    });
+    // Start polling for appointment updates
+    this.startPolling();
   }
 
-  private setupWebSocketListeners(): void {
-    // Handle new appointment notifications
-    this.webSocketService.appointmentCreated$.subscribe((data) => {
-      if (data && data.appointment) {
-        // Add to the notification service
-        this.notificationService.addNotification({
-          type: 'appointment',
-          title: 'New Appointment',
-          content: this.getNotificationMessage(data.appointment, 'created'),
-          route: this.getCurrentUserRoute('/appointments'),
-          metadata: { appointmentId: data.appointmentId },
-        });
+  /**
+   * Start polling for appointment changes
+   * @param intervalMs Polling interval in milliseconds (default: 30000 - 30 seconds)
+   */
+  public startPolling(intervalMs = 30000): void {
+    // Stop any existing polling
+    this.stopPolling();
 
-        // Also update the subject for components listening directly
-        this.appointmentNotificationsSubject.next({
-          appointmentId: data.appointmentId,
-          type: 'created',
-          appointment: data.appointment,
-        });
-      }
-    });
+    console.log('Starting appointment notification polling');
 
-    // Handle appointment updates
-    this.webSocketService.appointmentUpdated$.subscribe((data) => {
-      if (data && data.appointment) {
-        // Add to the notification service
-        this.notificationService.addNotification({
-          type: 'appointment',
-          title: 'Appointment Updated',
-          content: this.getNotificationMessage(data.appointment, 'updated'),
-          route: this.getCurrentUserRoute('/appointments'),
-          metadata: { appointmentId: data.appointmentId },
-        });
-
-        // Also update the subject for components listening directly
-        this.appointmentNotificationsSubject.next({
-          appointmentId: data.appointmentId,
-          type: 'updated',
-          appointment: data.appointment,
-        });
-      }
-    });
-
-    // Handle appointment cancellations
-    this.webSocketService.appointmentCancelled$.subscribe((data) => {
-      if (data && data.appointment) {
-        // Add to the notification service
-        this.notificationService.addNotification({
-          type: 'appointment',
-          title: 'Appointment Cancelled',
-          content: this.getNotificationMessage(data.appointment, 'cancelled'),
-          route: this.getCurrentUserRoute('/appointments'),
-          metadata: { appointmentId: data.appointmentId },
-        });
-
-        // Also update the subject for components listening directly
-        this.appointmentNotificationsSubject.next({
-          appointmentId: data.appointmentId,
-          type: 'cancelled',
-          appointment: data.appointment,
-        });
-      }
-    });
-
-    // Handle appointment reminders
-    this.webSocketService.appointmentReminder$.subscribe((data) => {
-      if (data && data.appointment) {
-        // Add to the notification service with high priority
-        this.notificationService.addNotification({
-          type: 'reminder',
-          title: 'Appointment Reminder',
-          content: this.getNotificationMessage(data.appointment, 'reminder'),
-          route: this.getCurrentUserRoute('/appointments'),
-          metadata: { appointmentId: data.appointmentId },
-        });
-
-        // Also update the subject for components listening directly
-        this.appointmentNotificationsSubject.next({
-          appointmentId: data.appointmentId,
-          type: 'reminder',
-          appointment: data.appointment,
-        });
-      }
-    });
+    this.pollingSubscription = interval(intervalMs)
+      .pipe(
+        takeUntil(this.destroy$),
+        filter(() => this.authService.isAuthenticated()),
+        switchMap(() => this.checkForAppointmentUpdates()),
+        catchError((err) => {
+          console.error('Error polling for appointment updates:', err);
+          return of(null);
+        })
+      )
+      .subscribe();
   }
 
-  private joinAppointmentRoom(): void {
-    const userProfile = this.authService.getProfileFromToken();
-    if (userProfile && userProfile.id) {
-      this.webSocketService.joinRoom(
-        `appointment-${userProfile.id}`,
-        (success) => {
-          if (success) {
-            console.log('Successfully joined appointment notification room');
-          } else {
-            console.error('Failed to join appointment notification room');
-          }
-        }
-      );
+  /**
+   * Stop polling for appointment updates
+   */
+  public stopPolling(): void {
+    if (this.pollingSubscription) {
+      this.pollingSubscription.unsubscribe();
+      this.pollingSubscription = null;
     }
+  }
+
+  /**
+   * Check for appointment updates since last poll
+   */
+  private checkForAppointmentUpdates(): Observable<any> {
+    const apiUrl = `${environment.apiUrl}/api/v1/appointments/updates`;
+    const params = { since: this.lastPollTime.toISOString() };
+
+    // Update the poll time
+    this.lastPollTime = new Date();
+
+    return this.appointmentService.getAppointmentsForUser().pipe(
+      tap((appointments) => {
+        // Compare with local cache to determine which ones are new or updated
+        // This is a simplified version - in production you'd want to have
+        // a more sophisticated mechanism on the backend to track changes
+
+        // For now, just notify about recent appointments (last 24 hours)
+        const recentAppointments = appointments.filter((a) => {
+          const createdAt = new Date(a.createdAt);
+          const now = new Date();
+          const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          return createdAt >= oneDayAgo;
+        });
+
+        // Create notifications for recent appointments
+        recentAppointments.forEach((appointment) => {
+          this.notificationService.addNotification({
+            type: 'appointment',
+            title: 'Recent Appointment',
+            content: this.getNotificationMessage(appointment, 'created'),
+            route: this.getCurrentUserRoute('/appointments'),
+            metadata: { appointmentId: appointment.id },
+          });
+
+          this.appointmentNotificationsSubject.next({
+            appointmentId: appointment.id,
+            type: 'created',
+            appointment: appointment,
+          });
+        });
+      }),
+      catchError((err) => {
+        console.error('Error checking for appointment updates:', err);
+        return of([]);
+      })
+    );
   }
 
   private getCurrentUserRoute(path: string): string {
@@ -148,6 +134,15 @@ export class AppointmentNotificationService {
       return `/patient${path}`;
     }
   }
+
+  /**
+   * Helper method to determine if the current user is a doctor
+   */
+  private isCurrentUserDoctor(): boolean {
+    const role = this.authService.getCurrentUserRole();
+    return role === 'doctor' || role === 'admin';
+  }
+
   /**
    * Generate appropriate message for appointment notifications
    * @param appointment The appointment object or appointment notification object
@@ -199,9 +194,10 @@ export class AppointmentNotificationService {
         return 'bg-gray-100 text-gray-800';
     }
   }
-
-  private isCurrentUserDoctor(): boolean {
-    const currentUserRole = this.authService.getCurrentUserRole();
-    return currentUserRole === 'admin' || currentUserRole === 'doctor';
+  ngOnDestroy(): void {
+    // Signal components to stop observables
+    this.destroy$.next(true);
+    this.destroy$.complete();
+    this.stopPolling();
   }
 }
