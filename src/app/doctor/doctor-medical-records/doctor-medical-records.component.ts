@@ -24,6 +24,10 @@ export class DoctorMedicalRecordsComponent implements OnInit {
   patientName: string = '';
   isLoading: boolean = false;
   error: string | null = null;
+  selectedFile: File | null = null;
+  isUploadingAttachment: boolean = false;
+  uploadError: string | null = null;
+  isDownloadingAttachment: boolean = false;
 
   constructor(
     private medicalRecordService: MedicalRecordService,
@@ -35,7 +39,9 @@ export class DoctorMedicalRecordsComponent implements OnInit {
     this.route.params.subscribe((params) => {
       this.patientId = params['patientId'];
       // In a real app, you would fetch the patient details to get their name
-      this.patientName = 'Patient';
+      // For now, try to get it from query params if available from navigation
+      this.patientName =
+        this.route.snapshot.queryParams['patientName'] || 'Patient';
       this.loadMedicalRecords();
     });
   }
@@ -94,7 +100,7 @@ export class DoctorMedicalRecordsComponent implements OnInit {
       return;
     }
 
-    this.isLoading = true;
+    this.isLoading = true; // Keep this for overall page loading state if needed
     this.medicalRecordService
       .deleteMedicalRecord(id)
       .pipe(
@@ -108,8 +114,113 @@ export class DoctorMedicalRecordsComponent implements OnInit {
         })
       )
       .subscribe(() => {
-        this.loadMedicalRecords();
-        this.selectedRecord = null;
+        this.loadMedicalRecords(); // Reload all records
+        this.selectedRecord = null; // Deselect the deleted record
+      });
+  }
+
+  getAttachmentUrl(attachmentId?: string): string {
+    if (!attachmentId) {
+      return '#'; // Or some other placeholder/error handling
+    }
+    // Assuming your API is served from the same base URL or you have a configured base API URL
+    // For local development, this might be 'http://localhost:3001'
+    // In a production environment, this would be your actual API domain.
+    const baseUrl = 'http://localhost:3001'; // TODO: Make this configurable
+    return `${baseUrl}/api/v1/medical-records/attachments/${attachmentId}`;
+  }
+
+  onFileSelected(event: Event): void {
+    const element = event.currentTarget as HTMLInputElement;
+    let fileList: FileList | null = element.files;
+    if (fileList && fileList.length > 0) {
+      this.selectedFile = fileList[0];
+      this.uploadError = null;
+    } else {
+      this.selectedFile = null;
+    }
+  }
+
+  uploadAttachment(): void {
+    if (!this.selectedFile || !this.selectedRecord) {
+      this.uploadError =
+        'Please select a file and ensure a medical record is selected.';
+      return;
+    }
+
+    this.isUploadingAttachment = true;
+    this.uploadError = null;
+
+    this.medicalRecordService
+      .uploadAttachment(this.selectedRecord.id, this.selectedFile)
+      .pipe(
+        catchError((err) => {
+          this.uploadError =
+            err.error?.message ||
+            'Failed to upload attachment. Please try again.';
+          console.error('Error uploading attachment:', err);
+          return of(null);
+        }),
+        finalize(() => {
+          this.isUploadingAttachment = false;
+          this.selectedFile = null; // Reset file input
+          // Clear the actual file input element for UX
+          const fileInput = document.querySelector(
+            'input[type="file"]'
+          ) as HTMLInputElement;
+          if (fileInput) {
+            fileInput.value = '';
+          }
+        })
+      )
+      .subscribe((response) => {
+        if (response) {
+          // Successfully uploaded, refresh the records or update the selected record's attachments
+          this.loadMedicalRecords(); // Easiest way is to reload all, or you can selectively update
+          // Optionally, re-select the current record to show updated attachments
+          // This requires that loadMedicalRecords correctly updates the selectedRecord if it's re-fetched
+        }
+      });
+  }
+
+  downloadAttachment(attachmentId?: string): void {
+    if (!attachmentId) {
+      console.error('Attachment ID is undefined');
+      this.error = 'Cannot download file: Attachment ID is missing.';
+      return;
+    }
+
+    this.isDownloadingAttachment = true;
+    this.error = null; // Clear previous errors
+
+    this.medicalRecordService
+      .downloadAttachment(attachmentId)
+      .pipe(
+        finalize(() => (this.isDownloadingAttachment = false)),
+        catchError((err) => {
+          console.error('Error downloading attachment:', err);
+          this.error =
+            err.error?.message ||
+            'Failed to download attachment. Please ensure you have access and the file exists.';
+          return of(null);
+        })
+      )
+      .subscribe((blob) => {
+        if (blob) {
+          // Find the attachment details to get the fileName and fileType
+          const attachment = this.selectedRecord?.attachments?.find(
+            (att) => att.id === attachmentId
+          );
+          const fileName = attachment?.fileName || 'downloaded-file';
+
+          const link = document.createElement('a');
+          link.href = window.URL.createObjectURL(blob);
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(link.href);
+        }
       });
   }
 

@@ -41,63 +41,114 @@ export class PatientsListComponent implements OnInit {
   }
 
   loadPatients(): void {
+    console.log('[PatientLoad] Starting to load patients...'); // Log: Start
     this.isLoading = true;
     this.error = null;
     this.patientService
       .getDoctorPatients()
       .pipe(
-        finalize(() => (this.isLoading = false)),
+        finalize(() => {
+          this.isLoading = false;
+          console.log(
+            '[PatientLoad] Finished loading patients (finalize block).'
+          ); // Log: Finalize
+        }),
         catchError((err) => {
+          console.error('[PatientLoad] Error loading patients:', err); // Log: Error
           this.error =
             'Failed to load patients. ' +
             (err.error?.message || 'Please try again later.');
+          this.patients = []; // Ensure patients is empty on error
+          this.filteredPatients = []; // Ensure filteredPatients is empty on error
           return of([]);
         })
       )
       .subscribe((patients) => {
+        console.log('[PatientLoad] Received patients from service:', patients); // Log: Success
         this.patients = patients;
         this.filteredPatients = [...patients];
+        console.log(
+          '[PatientLoad] Patients array populated. Count:',
+          this.patients.length
+        ); // Log: Population
+        // If search term exists, re-apply search
+        if (this.searchTerm && this.searchTerm.trim()) {
+          console.log('[PatientLoad] Search term exists, re-applying search.');
+          this.onSearch();
+        }
       });
   }
   onSearch(): void {
+    console.log(
+      '[PatientSearch] onSearch triggered. Raw searchTerm:',
+      this.searchTerm
+    ); // Debug 1
+
     // Reset the filter if the search term is empty
     if (!this.searchTerm || !this.searchTerm.trim()) {
       this.filteredPatients = [...this.patients];
+      console.log(
+        '[PatientSearch] Search term empty, resetting filter. Patients count:',
+        this.patients.length
+      ); // Debug 2
       return;
     }
 
     const term = this.normalizeString(this.searchTerm.trim());
+    console.log('[PatientSearch] Normalized search term:', term); // Debug 3
+
+    if (!this.patients || this.patients.length === 0) {
+      console.warn(
+        '[PatientSearch] No patients loaded to search through. Ensure patients are loaded correctly.'
+      ); // Debug 4
+      this.filteredPatients = [];
+      return;
+    }
+    console.log(
+      '[PatientSearch] Searching through patients. Count:',
+      this.patients.length
+    );
 
     this.filteredPatients = this.patients.filter((patient) => {
       if (!patient) return false;
 
-      // Normalize search fields to handle international characters consistently
       const normalizedFirstName = this.normalizeString(patient.firstName || '');
       const normalizedLastName = this.normalizeString(patient.lastName || '');
       const normalizedEmail = this.normalizeString(patient.email || '');
+      // Consistent normalization for phone number search
+      const normalizedPhone = this.normalizeString(patient.phoneNumber || '');
 
-      // Create variations of full names for searching
       const fullName = `${normalizedFirstName} ${normalizedLastName}`;
       const reversedName = `${normalizedLastName} ${normalizedFirstName}`;
       const formalName = `${normalizedLastName}, ${normalizedFirstName}`;
 
-      // Convert phone to string and check if it contains the search term directly
-      // Phone numbers shouldn't be normalized as they contain specific formatting
-      const phoneMatch =
-        patient.phoneNumber?.toLowerCase().includes(term.toLowerCase()) ||
-        false;
+      // Use the normalized phone number for matching against the normalized term
+      const phoneMatch = normalizedPhone.includes(term);
 
-      // Match if any field contains the search term
-      return (
+      const isMatch =
         normalizedFirstName.includes(term) ||
         normalizedLastName.includes(term) ||
         fullName.includes(term) ||
         reversedName.includes(term) ||
         formalName.includes(term) ||
         normalizedEmail.includes(term) ||
-        phoneMatch
+        phoneMatch;
+
+      // Uncomment for very detailed per-patient logging if needed:
+      // console.log(`[PatientSearch] Checking Patient: ID=${patient.id}, Name=${patient.firstName} ${patient.lastName} (Normalized: ${normalizedFirstName} ${normalizedLastName}), Email: ${normalizedEmail} (Normalized: ${normalizedEmail}), Phone: ${patient.phoneNumber} (Normalized: ${normalizedPhone}). Term: ${term}. Match: ${isMatch}`);
+
+      return isMatch;
+    });
+    console.log(
+      '[PatientSearch] Filtered patients count:',
+      this.filteredPatients.length
+    ); // Debug 6
+    if (this.filteredPatients.length === 0) {
+      console.log(
+        '[PatientSearch] No patients matched the search term. Original patients list:',
+        this.patients
       );
-    }); // If debugging is needed, you can add it here
+    }
   }
   getPatientAge(dateOfBirth: string | undefined): number {
     if (!dateOfBirth) return 0;

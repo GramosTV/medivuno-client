@@ -120,14 +120,47 @@ export class MedicalRecordService {
   }
 
   /**
+   * Get a single medical record by its ID
+   */
+  getMedicalRecordById(id: string): Observable<MedicalRecord> {
+    return this.http
+      .get<ApiResponse<MedicalRecordBase>>(`${this.apiUrl}/${id}`)
+      .pipe(
+        map((response) => {
+          const record = response.data;
+          return {
+            ...record,
+            date: record.recordDate ? new Date(record.recordDate) : undefined,
+            doctorName: 'Doctor',
+            attachments: record.attachments?.map((attachment) => ({
+              ...attachment,
+              fileType: attachment.mimeType,
+              // Corrected URL construction for attachments when fetching a single record
+              url: `${environment.apiUrl}/api/v1/medical-records/attachments/${attachment.id}`,
+            })),
+          };
+        })
+      );
+  }
+
+  /**
    * Create a new medical record
    */
   createMedicalRecord(
-    record: CreateMedicalRecordDto
+    recordData: CreateMedicalRecordDto
   ): Observable<MedicalRecord> {
     return this.http
-      .post<ApiResponse<MedicalRecordBase>>(this.apiUrl, record)
-      .pipe(map((response) => this.processMedicalRecord(response.data)));
+      .post<ApiResponse<MedicalRecordBase>>(this.apiUrl, recordData)
+      .pipe(
+        map((response) => {
+          const record = response.data;
+          return {
+            ...record,
+            date: record.recordDate ? new Date(record.recordDate) : undefined,
+            doctorName: 'Doctor',
+          };
+        })
+      );
   }
 
   /**
@@ -135,24 +168,32 @@ export class MedicalRecordService {
    */
   updateMedicalRecord(
     id: string,
-    record: Partial<CreateMedicalRecordDto>
+    recordData: Partial<CreateMedicalRecordDto>
   ): Observable<MedicalRecord> {
     return this.http
-      .patch<ApiResponse<MedicalRecordBase>>(`${this.apiUrl}/${id}`, record)
-      .pipe(map((response) => this.processMedicalRecord(response.data)));
+      .put<ApiResponse<MedicalRecordBase>>(`${this.apiUrl}/${id}`, recordData)
+      .pipe(
+        map((response) => {
+          const record = response.data;
+          return {
+            ...record,
+            date: record.recordDate ? new Date(record.recordDate) : undefined,
+            doctorName: 'Doctor',
+          };
+        })
+      );
   }
 
   /**
-   * Delete a medical record
+   * Delete a medical record by its ID
    */
-  deleteMedicalRecord(id: string): Observable<void> {
-    return this.http.delete<ApiResponse<void>>(`${this.apiUrl}/${id}`).pipe(
-      map((response) => undefined) // Just return void as expected
-    );
+  deleteMedicalRecord(id: string): Observable<any> {
+    return this.http.delete<ApiResponse<null>>(`${this.apiUrl}/${id}`);
   }
 
   /**
-   * Upload a file attachment for a medical record
+   * Upload an attachment for a medical record
+   *
    * @param recordId The ID of the medical record
    * @param file The file to upload
    */
@@ -161,7 +202,7 @@ export class MedicalRecordService {
     file: File
   ): Observable<MedicalRecordAttachment> {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', file, file.name);
 
     return this.http
       .post<ApiResponse<MedicalRecordAttachmentBase>>(
@@ -173,42 +214,16 @@ export class MedicalRecordService {
           const attachment = response.data;
           return {
             ...attachment,
-            fileType: attachment.mimeType,
-            url: `${environment.apiUrl}/api/v1/files/${attachment.filePath}`,
+            // Construct the URL for the newly uploaded attachment
+            url: `${environment.apiUrl}/api/v1/medical-records/attachments/${attachment.id}`,
+            fileType: attachment.mimeType, // Ensure fileType is mapped for consistency
           };
         })
       );
   }
 
-  /**
-   * Delete an attachment from a medical record
-   */
-  deleteAttachment(recordId: string, attachmentId: string): Observable<void> {
-    return this.http
-      .delete<ApiResponse<void>>(
-        `${this.apiUrl}/${recordId}/attachments/${attachmentId}`
-      )
-      .pipe(
-        map((response) => undefined) // Just return void as expected
-      );
-  }
-
-  /**
-   * Get all attachments for a medical record
-   */
-  getAttachments(recordId: string): Observable<MedicalRecordAttachment[]> {
-    return this.http
-      .get<ApiResponse<MedicalRecordAttachmentBase[]>>(
-        `${this.apiUrl}/${recordId}/attachments`
-      )
-      .pipe(
-        map((response) => {
-          return response.data.map((attachment) => ({
-            ...attachment,
-            fileType: attachment.mimeType,
-            url: `${environment.apiUrl}/api/v1/files/${attachment.filePath}`,
-          }));
-        })
-      );
+  downloadAttachment(attachmentId: string): Observable<Blob> {
+    const url = `${this.apiUrl}/attachments/${attachmentId}`;
+    return this.http.get(url, { responseType: 'blob' });
   }
 }
