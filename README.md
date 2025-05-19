@@ -1,59 +1,97 @@
-# HealthcareApp
+# Healthcare App Client (Angular)
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.2.11.
+This is the frontend client for the Healthcare App, built with Angular. It provides a user interface for patients, doctors, and administrators to interact with the healthcare platform.
 
-## Development server
+## Features
 
-To start a local development server, run:
+- User-friendly interface for registration, login, and profile management.
+- Dashboard views tailored for Patients, Doctors, and Admins.
+- Appointment booking, viewing, and management.
+- Access to medical records, including viewing details and attachments.
+- Ability for doctors to create and update medical records, and upload attachments.
+- Secure messaging system.
+- Responsive design for use on various devices.
 
-```bash
-ng serve
-```
+## Prerequisites
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+- Node.js (version 18.x or 20.x recommended)
+- Angular CLI (latest version recommended)
+- Git
 
-## Code scaffolding
+## Setup
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+1.  **Clone the repository (if not already done for the server):**
 
-```bash
-ng generate component component-name
-```
+    ```bash
+    git clone <repository-url>
+    cd healthcare-gemini/healthcare-app
+    ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+    If you've already cloned the main project, navigate to the `healthcare-app` directory.
 
-```bash
-ng generate --help
-```
+2.  **Install Dependencies:**
 
-## Building
+    ```bash
+    npm install
+    ```
 
-To build the project run:
+3.  **Environment Configuration:**
 
-```bash
-ng build
-```
+    - The client uses Angular's environment files (`src/environments/`).
+    - `src/environments/environment.ts` (for development)
+    - `src/environments/environment.prod.ts` (for production)
+    - Ensure the `apiUrl` in these files points to your running backend server. For local development, this is typically:
+      ```typescript
+      // src/environments/environment.ts
+      export const environment = {
+        production: false,
+        apiUrl: "http://localhost:3001", // Or whatever port your Go server is running on
+      };
+      ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+4.  **Run the Development Server:**
+    ```bash
+    ng serve
+    ```
+    Navigate to `http://localhost:4200/` (or the port specified in your Angular CLI configuration). The app will automatically reload if you change any of the source files.
 
-## Running unit tests
+## Build
 
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory. Use the `--configuration production` flag for a production build.
 
-```bash
-ng test
-```
+## Running Unit Tests
 
-## Running end-to-end tests
+Run `ng test` to execute the unit tests via Karma.
 
-For end-to-end (e2e) testing, run:
+## Running End-to-End Tests
 
-```bash
-ng e2e
-```
+Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+## Project Structure
 
-## Additional Resources
+- `src/`: Main application source code.
+  - `app/`: Core application modules, components, services.
+    - `auth/`: Authentication-related components (login, register).
+    - `core/`: Core services, guards, interceptors (e.g., `AuthService`, `AuthGuard`, `AuthInterceptor`).
+    - `doctor/`: Doctor-specific features and components.
+    - `patient/`: Patient-specific features and components.
+    - `shared/`: Shared components, directives, pipes, interfaces, and services used across the application.
+      - `interfaces/`: TypeScript interfaces for data models.
+      - `services/`: Shared application services (e.g., `MedicalRecordService`).
+  - `assets/`: Static assets like images, fonts.
+  - `environments/`: Environment-specific configuration.
+  - `index.html`: Main HTML page.
+  - `main.ts`: Main entry point of the application.
+  - `styles.scss`: Global styles.
+- `angular.json`: Angular CLI configuration.
+- `package.json`: NPM dependencies and scripts.
+- `tailwind.config.js`: Tailwind CSS configuration.
+- `README.md`: This file.
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+## Further Help
+
+To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.io/cli) page.
+
+## Contributing
+
+Please refer to the main project's contributing guidelines.
