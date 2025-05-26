@@ -1,5 +1,7 @@
 # Healthcare App Client (Angular)
 
+[Server Repository](https://github.com/GramosTV/medivuno-server)
+
 This is the frontend client for the Healthcare App, built with Angular. It provides a user interface for patients, doctors, and administrators to interact with the healthcare platform.
 
 ## Features
